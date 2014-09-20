@@ -23,9 +23,8 @@ namespace UnluacNET
         public abstract bool IsContainer { get; }
         public abstract bool IsUnprotected { get; }
         
-        public abstract int GetLoopback();
-
         public abstract void AddStatement(Statement statement);
+        public abstract int GetLoopback();
 
         public int CompareTo(Block block)
         {
@@ -45,7 +44,7 @@ namespace UnluacNET
                     {
                         return -1;
                     }
-                    else if (IsContainer && block.IsContainer)
+                    else if (!IsContainer && block.IsContainer)
                     {
                         return 1;
                     }
@@ -77,8 +76,7 @@ namespace UnluacNET
 
         public Operation Process(Decompiler d)
         {
-            // TODO: 'Block': Implement 'GenericOperation' of some sort, return statement
-            return null;
+            return new GenericOperation(ScopeEnd, this);
         }
 
         public Block(LFunction function, int begin, int end)
