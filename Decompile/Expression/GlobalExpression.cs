@@ -5,6 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
+    // TODO: Finish 'GlobalExpression' class
     public class GlobalExpression : Expression
     {
     }

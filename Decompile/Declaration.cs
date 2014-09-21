@@ -12,7 +12,7 @@ namespace UnluacNET
         public int Begin { get; private set; }
         public int End { get; private set; }
 
-        public int Register { get; private set; }
+        public int Register { get; set; }
 
         //Whether this is an invisible for-loop book-keeping variable.
         internal bool ForLoop { get; set; }

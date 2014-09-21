@@ -14,7 +14,7 @@ namespace UnluacNET
 
         public bool LoopRedirectAdjustment { get; set; }
 
-        public int ScopeEnd
+        public virtual int ScopeEnd
         {
             get { return End - 1; }
         }

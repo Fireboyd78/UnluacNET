@@ -5,6 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
+    // TODO: Finish 'LocalVariable' class
     public class LocalVariable : Expression
     {
     }

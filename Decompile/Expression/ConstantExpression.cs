@@ -5,6 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
+    // TODO: Finish 'ConstantExpression' class
     public class ConstantExpression : Expression
     {
     }
