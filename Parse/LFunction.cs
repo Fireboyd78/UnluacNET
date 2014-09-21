@@ -5,7 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class LFunction
+    public class LFunction : BObject
     {
         public BHeader Header { get; set; }
         public int[] Code { get; set; }

@@ -61,8 +61,7 @@ namespace UnluacNET
 
         public override LFunctionType GetLFunctionType()
         {
-            // TODO: return LFunctionType.TYPE51
-            throw new NotImplementedException();
+            return LFunctionType.TYPE51;
         }
 
         public override bool IsBreakableLoopEnd(Op op)
@@ -102,8 +101,7 @@ namespace UnluacNET
 
         public override LFunctionType GetLFunctionType()
         {
-            // TODO: return LFunctionType.TYPE52
-            throw new NotImplementedException();
+            return LFunctionType.TYPE52;
         }
 
         public override bool IsBreakableLoopEnd(Op op)

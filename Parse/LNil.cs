@@ -7,5 +7,13 @@ namespace UnluacNET
 {
     public class LNil : LObject
     {
+        public static readonly LNil NIL = new LNil();
+
+        public override bool Equals(object obj)
+        {
+            return (this == obj);
+        }
+
+        private LNil() { }
     }
 }

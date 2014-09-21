@@ -5,7 +5,8 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class LConstantType
+    // TODO: Finish 'LConstantType' class
+    public class LConstantType : BObjectType<LObject>
     {
     }
 }

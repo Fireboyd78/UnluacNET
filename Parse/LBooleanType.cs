@@ -5,7 +5,8 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class LBooleanType
+    // TODO: Finish 'LBooleanType' class
+    public class LBooleanType : BObjectType<LBoolean>
     {
     }
 }

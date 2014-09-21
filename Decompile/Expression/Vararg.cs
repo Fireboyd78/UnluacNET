@@ -5,6 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
+    // TODO: Finish 'Vararg' class
     public class Vararg : Expression
     {
     }

@@ -5,8 +5,12 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class BInteger
+    // TODO: Finish 'BInteger' class
+    public class BInteger : BObject
     {
-
+        public int AsInteger()
+        {
+            return -1;
+        }
     }
 }

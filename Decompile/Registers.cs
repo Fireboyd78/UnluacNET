@@ -7,7 +7,7 @@ namespace UnluacNET
 {
     public class Registers
     {
-        public int Registers { get; private set; }
+        public int NumRegisters { get; private set; }
         public int Length { get; private set; }
 
         private readonly Declaration[,] m_decls;
@@ -61,9 +61,9 @@ namespace UnluacNET
 
         public List<Declaration> GetNewLocals(int line)
         {
-            var locals = new List<Declaration>(Registers);
+            var locals = new List<Declaration>(NumRegisters);
 
-            for (int register = 0; register < Registers; register++)
+            for (int register = 0; register < NumRegisters; register++)
             {
                 if (IsNewLocal(register, line))
                     locals.Add(GetDeclaration(register, line));
@@ -136,7 +136,7 @@ namespace UnluacNET
         {
             m_startedLines[line] = true;
 
-            for (int register = 0; register < Registers; register++)
+            for (int register = 0; register < NumRegisters; register++)
             {
                 m_values[register, line] = m_values[register, line - 1];
                 m_updated[register, line] = m_updated[register, line - 1];
@@ -145,7 +145,7 @@ namespace UnluacNET
 
         public Registers(int registers, int length, Declaration[] declList, Function func)
         {
-            Registers = registers;
+            NumRegisters = registers;
             Length = length;
 
             m_decls = new Declaration[registers, length + 1];

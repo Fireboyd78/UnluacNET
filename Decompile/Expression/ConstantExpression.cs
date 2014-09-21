@@ -60,6 +60,11 @@ namespace UnluacNET
             return m_constant.AsName();
         }
 
+        public override void Print(Output output)
+        {
+            m_constant.Print(output);
+        }
+
         public ConstantExpression(Constant constant, int index)
             : base(PRECEDENCE_ATOMIC)
         {

@@ -23,8 +23,9 @@ namespace UnluacNET
         public LLocal(LString name, BInteger start, BInteger end)
         {
             Name = name;
-            //Start = start;
-            //End = end;
+
+            Start = start.AsInteger();
+            End = end.AsInteger();
         }
     }
 }

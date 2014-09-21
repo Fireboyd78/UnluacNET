@@ -5,7 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class Block : Statement, IComparable<Block>
+    public abstract class Block : Statement, IComparable<Block>
     {
         protected readonly LFunction m_function;
 

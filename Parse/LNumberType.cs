@@ -5,7 +5,8 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class LNumberType
+    // TODO: Finish 'LNumberType' class
+    public class LNumberType : BObjectType<LNumber>
     {
     }
 }

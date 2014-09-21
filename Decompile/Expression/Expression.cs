@@ -5,7 +5,6 @@ using System.Text;
 
 namespace UnluacNET
 {
-    // TODO: Finish 'Expression' class
     public abstract class Expression
     {
         public static readonly int PRECEDENCE_OR        = 1;
@@ -23,7 +22,57 @@ namespace UnluacNET
         public static readonly int ASSOCIATIVITY_RIGHT  = 2;
 
         public static readonly Expression NIL = new ConstantExpression(new Constant(LNil.NIL), -1);
-        
+
+        public static BinaryExpression MakeCONCAT(Expression left, Expression right)
+        {
+            return new BinaryExpression("..", left, right, PRECEDENCE_CONCAT, ASSOCIATIVITY_RIGHT);
+        }
+
+        public static BinaryExpression MakeADD(Expression left, Expression right)
+        {
+            return new BinaryExpression("+", left, right, PRECEDENCE_ADD, ASSOCIATIVITY_LEFT);
+        }
+
+        public static BinaryExpression MakeSUB(Expression left, Expression right)
+        {
+            return new BinaryExpression("-", left, right, PRECEDENCE_ADD, ASSOCIATIVITY_LEFT);
+        }
+
+        public static BinaryExpression MakeMUL(Expression left, Expression right)
+        {
+            return new BinaryExpression("*", left, right, PRECEDENCE_MUL, ASSOCIATIVITY_LEFT);
+        }
+
+        public static BinaryExpression MakeDIV(Expression left, Expression right)
+        {
+            return new BinaryExpression("/", left, right, PRECEDENCE_MUL, ASSOCIATIVITY_LEFT);
+        }
+
+        public static BinaryExpression MakeMOD(Expression left, Expression right)
+        {
+            return new BinaryExpression("%", left, right, PRECEDENCE_MUL, ASSOCIATIVITY_LEFT);
+        }
+
+        public static BinaryExpression MakePOW(Expression left, Expression right)
+        {
+            return new BinaryExpression("^", left, right, PRECEDENCE_POW, ASSOCIATIVITY_RIGHT);
+        }
+
+        public static UnaryExpression MakeUNM(Expression expression)
+        {
+            return new UnaryExpression("-", expression, PRECEDENCE_UNARY);
+        }
+
+        public static UnaryExpression MakeNOT(Expression expression)
+        {
+            return new UnaryExpression("not ", expression, PRECEDENCE_UNARY);
+        }
+
+        public static UnaryExpression MakeLEN(Expression expression)
+        {
+            return new UnaryExpression("#", expression, PRECEDENCE_UNARY);
+        }
+
         public static void PrintSequence(Output output, List<Expression> exprs, bool lineBreak, bool multiple)
         {
             var n = exprs.Count;
@@ -69,10 +118,10 @@ namespace UnluacNET
             right.Print(output);
         }
 
-        protected static void PrintUnary(Output output, string op, Expression expr)
+        protected static void PrintUnary(Output output, string op, Expression expression)
         {
             output.Print(op);
-            expr.Print(output);
+            expression.Print(output);
         }
 
         public abstract int ConstantIndex { get; }

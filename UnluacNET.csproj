@@ -114,6 +114,7 @@
     <Compile Include="Decompile\Target\UpvalueTarget.cs" />
     <Compile Include="Decompile\Target\VariableTarget.cs" />
     <Compile Include="Decompile\Upvalues.cs" />
+    <Compile Include="Extensions\StreamExtensions.cs" />
     <Compile Include="Parse\BHeader.cs" />
     <Compile Include="Parse\BInteger.cs" />
     <Compile Include="Parse\BIntegerType.cs" />

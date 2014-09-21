@@ -5,7 +5,6 @@ using System.Text;
 
 namespace UnluacNET
 {
-    // TODO: Finish 'RegisterSet' class
     public class RegisterSet : Operation
     {
         public int Register { get; private set; }
@@ -13,7 +12,19 @@ namespace UnluacNET
 
         public override Statement Process(Registers r, Block block)
         {
-            
+            r.SetValue(Register, Line, Value);
+
+            if (r.IsAssignable(Register, Line))
+                return new Assignment(r.GetTarget(Register, Line), Value);
+            else
+                return null;
+        }
+
+        public RegisterSet(int line, int register, Expression value)
+            : base(line)
+        {
+            Register = register;
+            Value = value;
         }
     }
 }

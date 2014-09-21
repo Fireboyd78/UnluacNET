@@ -7,7 +7,7 @@ namespace UnluacNET
 {
     public abstract class LObject : BObject
     {
-        public abstract bool Equals(Object obj);
+        public abstract new bool Equals(Object obj);
 
         public virtual string DeRef()
         {

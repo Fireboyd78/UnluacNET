@@ -5,7 +5,12 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class BSizeTType
+    // TODO: Finish 'BSizeTType' class
+    public class BSizeTType : BObjectType<BSizeT>
     {
+        public override BSizeT Parse(System.IO.Stream stream, BHeader header)
+        {
+            return null;
+        }
     }
 }

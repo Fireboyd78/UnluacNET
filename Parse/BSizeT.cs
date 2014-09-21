@@ -5,7 +5,8 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class BSizeT
+    // TODO: Finish 'BSizeT' class
+    public class BSizeT : BInteger
     {
     }
 }

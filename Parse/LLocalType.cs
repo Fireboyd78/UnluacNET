@@ -5,7 +5,8 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class LLocalType
+    // TODO: Finish 'LLocalType' class
+    public class LLocalType : BObjectType<LLocal>
     {
     }
 }
