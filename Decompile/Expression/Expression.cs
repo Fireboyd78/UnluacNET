@@ -228,7 +228,7 @@ namespace UnluacNET
             throw new InvalidOperationException();
         }
 
-        public void PrintMultiple(Output output)
+        public virtual void PrintMultiple(Output output)
         {
             Print(output);
         }

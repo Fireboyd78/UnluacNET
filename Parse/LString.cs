@@ -27,5 +27,11 @@ namespace UnluacNET
         {
             return String.Format("\"{0}\"", Value);
         }
+
+        public LString(BSizeT size, String value)
+        {
+            Size = size;
+            Value = (value.Length == 0) ? String.Empty : value.Substring(0, value.Length - 1);
+        }
     }
 }

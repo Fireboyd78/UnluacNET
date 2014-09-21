@@ -6,7 +6,6 @@ using System.Text;
 
 namespace UnluacNET
 {
-    // TODO: Finish 'LFunctionType' class
     public class LFunctionType : BObjectType<LFunction>
     {
         public static readonly LFunctionType TYPE51 = new LFunctionType();
@@ -64,7 +63,7 @@ namespace UnluacNET
                 Console.WriteLine("-- beginning to parse bytecode list");
 
             s.Length = header.Integer.Parse(stream, header).AsInteger();
-            s.Code = new int[s.Length];
+            s.Code   = new int[s.Length];
 
             for (int i = 0; i < s.Length; i++)
             {
@@ -99,8 +98,9 @@ namespace UnluacNET
                 Console.WriteLine("-- beginning to parse upvalues list");
 
             var upvalNames = header.String.ParseList(stream, header);
+            var count = upvalNames.Length.AsInteger();
 
-            for (int i = 0; i < upvalNames.Length.AsInteger(); i++)
+            for (int i = 0; i < count; i++)
                 s.Upvalues[i].Name = upvalNames[i].DeRef();
         }
 
@@ -109,7 +109,7 @@ namespace UnluacNET
             s.Name = header.String.Parse(stream, header);
 
             s.LineBegin = header.Integer.Parse(stream, header).AsInteger();
-            s.LineEnd = header.Integer.Parse(stream, header).AsInteger();
+            s.LineEnd   = header.Integer.Parse(stream, header).AsInteger();
 
             s.LenUpvalues      = 0xFF & stream.ReadByte();
             s.LenParameter     = 0xFF & stream.ReadByte();
