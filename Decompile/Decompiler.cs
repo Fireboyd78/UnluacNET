@@ -195,7 +195,7 @@ namespace UnluacNET
 
             m_blocks = new List<Block>();
 
-            var outer = new OuterBlock(InputChunk, m_length);
+            var outer = new OuterBlock(Function, m_length);
 
             m_blocks.Add(outer);
 
@@ -254,7 +254,7 @@ namespace UnluacNET
 
             for (int line = 1; line <= m_length; line++)
             {
-                if (!skip[line])
+                if (!m_skip[line])
                 {
                     var A = Code.A(line);
                     var B = Code.B(line);
@@ -304,7 +304,7 @@ namespace UnluacNET
 
                             stack.Push(node);
 
-                            skip[line + 1] = true;
+                            m_skip[line + 1] = true;
 
                             if (Code.Op(node.End) == Op.LOADBOOL)
                             {
@@ -332,7 +332,7 @@ namespace UnluacNET
                                 line + 2,
                                 line + 2 + Code.sBx(line + 1)));
 
-                            skip[line + 1] = true;
+                            m_skip[line + 1] = true;
                         } continue;
                     case Op.TESTSET:
                         {
@@ -347,7 +347,7 @@ namespace UnluacNET
                                 line + 2,
                                 line + 2 + Code.sBx(line + 1)));
 
-                            skip[line + 1] = true;
+                            m_skip[line + 1] = true;
                         } continue;
                     case Op.JMP:
                         {
@@ -365,9 +365,9 @@ namespace UnluacNET
                                     line + 1,
                                     tLine));
 
-                                skip[line + 1] = true;
+                                m_skip[line + 1] = true;
                             }
-                            else if (Code.Op(tLine) == m_tForTarget && !skip[tLine])
+                            else if (Code.Op(tLine) == m_tForTarget && !m_skip[tLine])
                             {
                                 var tA = Code.A(tLine);
                                 var tC = Code.C(tLine);
@@ -387,8 +387,8 @@ namespace UnluacNET
                                         tLine + 2); // TODO: end?
                                 }
 
-                                skip[tLine = true];
-                                skip[tLine + 1] = true;
+                                m_skip[tLine] = true;
+                                m_skip[tLine + 1] = true;
 
                                 m_blocks.Add(new TForBlock(
                                     Function,
@@ -445,7 +445,7 @@ namespace UnluacNET
                                 A,
                                 m_registers));
 
-                            skip[line + 1 + sBx] = true;
+                            m_skip[line + 1 + sBx] = true;
 
                             m_registers.SetInternalLoopVariable(A, line, line + 2 + sBx);
                             m_registers.SetInternalLoopVariable(A + 1, line, line + 2 + sBx);
@@ -802,6 +802,110 @@ namespace UnluacNET
             }
         }
 
+        private bool IsStatement(int line)
+        {
+            return IsStatement(line, -1);
+        }
+
+        private bool IsStatement(int line, int testRegister)
+        {
+            switch (Code.Op(line))
+            {
+            case Op.MOVE:
+            case Op.LOADK:
+            case Op.LOADBOOL:
+            case Op.GETUPVAL:
+            case Op.GETTABUP:
+            case Op.GETGLOBAL:
+            case Op.GETTABLE:
+            case Op.NEWTABLE:
+            case Op.ADD:
+            case Op.SUB:
+            case Op.MUL:
+            case Op.DIV:
+            case Op.MOD:
+            case Op.POW:
+            case Op.UNM:
+            case Op.NOT:
+            case Op.LEN:
+            case Op.CONCAT:
+            case Op.CLOSURE:
+                return m_registers.IsLocal(Code.A(line), line) || Code.A(line) == testRegister;
+
+            case Op.LOADNIL:
+                for (int register = Code.A(line); register <= Code.B(line); register++)
+                {
+                    if (m_registers.IsLocal(register, line))
+                        return true;
+                }
+
+                return false;
+
+            case Op.SETGLOBAL:
+            case Op.SETUPVAL:
+            case Op.SETTABUP:
+            case Op.SETTABLE:
+            case Op.JMP:
+            case Op.TAILCALL:
+            case Op.RETURN:
+            case Op.FORLOOP:
+            case Op.FORPREP:
+            case Op.TFORCALL:
+            case Op.TFORLOOP:
+            case Op.CLOSE:
+                return true;
+            case Op.SELF:
+                {
+                    var a = Code.A(line);
+                    return m_registers.IsLocal(a, line) || m_registers.IsLocal(a + 1, line);
+                }
+            case Op.EQ:
+            case Op.LT:
+            case Op.LE:
+            case Op.TEST:
+            case Op.TESTSET:
+            case Op.SETLIST:
+                return false;
+            case Op.CALL:
+                {
+                    int a = Code.A(line);
+                    int c = Code.C(line);
+
+                    if (c == 1)
+                        return true;
+
+                    if (c == 0)
+                        c = m_stackSize - a + 1;
+
+                    for (int register = a; register < a + c - 1; register++)
+                    {
+                        if (m_registers.IsLocal(register, line))
+                            return true;
+                    }
+
+                    return (c == 2 && a == testRegister);
+                }
+            case Op.VARARG:
+                {
+                    int a = Code.A(line);
+                    int b = Code.B(line);
+                    
+                    if (b == 0)
+                        b = m_stackSize - a + 1;
+                    
+                    for (int register = a; register < a + b - 1; register++)
+                    {
+                        if (m_registers.IsLocal(register, line))
+                            return true;
+                    }
+
+                    return false;
+                }
+            default:
+                throw new InvalidOperationException("Illegal opcode: " + Code.Op(line));
+            }
+        }
+
         private void HandleInitialDeclares(Output output)
         {
             var initDecls = new List<Declaration>(DeclList.Length);
@@ -859,7 +963,7 @@ namespace UnluacNET
                     break;
             }
 
-            break;
+            return branch;
         }
 
         public Branch PopSetCondition(Stack<Branch> stack, int assignEnd)
