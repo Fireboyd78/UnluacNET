@@ -5,7 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class LTNode
+    public class LTNode : Branch
     {
     }
 }

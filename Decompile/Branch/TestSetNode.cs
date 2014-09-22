@@ -5,7 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class TestSetNode
+    public class TestSetNode : Branch
     {
     }
 }

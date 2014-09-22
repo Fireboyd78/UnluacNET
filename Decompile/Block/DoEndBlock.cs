@@ -5,7 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class DoEndBlock
+    public class DoEndBlock : Block
     {
     }
 }

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public class RepeatBlock
+    public class RepeatBlock : Block
     {
     }
 }
