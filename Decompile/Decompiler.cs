@@ -253,6 +253,7 @@ namespace UnluacNET
             }
         }
 
+        // TODO: Optimize / rewrite method
         private OuterBlock HandleBranches(bool first)
         {
             var oldBlocks = m_blocks;
@@ -994,6 +995,156 @@ namespace UnluacNET
                 }
 
                 output.PrintLine();
+            }
+        }
+
+        // TODO: Finish 'ProcessLine(int)' method
+        private List<Operation> ProcessLine(int line)
+        {
+            return null;
+        }
+
+        // TODO: Finish 'ProcessOperation(Operation, int, int, Block)' method
+        private Assignment ProcessOperation(Operation operation, int line, int nextLine, Block block)
+        {
+            return null;
+        }
+
+        private void ProcessSequence(int begin, int end)
+        {
+            var blockIndex = 1;
+            var blockStack = new Stack<Block>();
+
+            blockStack.Push(m_blocks[0]);
+
+            m_skip = new bool[end + 1];
+
+            for (int line = begin; line <= end; line++)
+            {
+                Operation blockHandler = null;
+
+                while (blockStack.Peek().End <= line)
+                {
+                    var b = blockStack.Pop();
+                    
+                    blockHandler = b.Process(this);
+
+                    if (blockHandler != null)
+                        break;
+                }
+
+                if (blockHandler == null)
+                {
+                    while (blockIndex < m_blocks.Count && m_blocks[blockIndex].Begin <= line)
+                        blockStack.Push(m_blocks[blockIndex++]);
+                }
+
+                var block = blockStack.Peek();
+
+                m_registers.StartLine(line); // Must occur AFTER block.rewrite (???)
+
+                if (m_skip[line])
+                {
+                    var nLocals = m_registers.GetNewLocals(line);
+
+                    if (!(nLocals.Count == 0))
+                    {
+                        var a = new Assignment();
+
+                        a.Declare(nLocals[0].Begin);
+
+                        foreach (var decl in nLocals)
+                            a.AddLast(new VariableTarget(decl), m_registers.GetValue(decl.Register, line));
+
+                        blockStack.Peek().AddStatement(a);
+                    }
+
+                    continue;
+                }
+
+                var operations = ProcessLine(line);
+                var newLocals = m_registers.GetNewLocals(blockHandler == null ? line : line - 1);
+
+                Assignment assign = null;
+
+                if (blockHandler == null)
+                {
+                    if (Code.Op(line) == Op.LOADNIL)
+                    {
+                        assign = new Assignment();
+
+                        var count = 0;
+
+                        foreach (var operation in operations)
+                        {
+                            var set = operation as RegisterSet;
+                            operation.Process(m_registers, block);
+
+                            if (m_registers.IsAssignable(set.Register, set.Line))
+                            {
+                                assign.AddLast(m_registers.GetTarget(set.Register, set.Line), set.Value));
+                                count++;
+                            }
+                        }
+
+                        if (count > 0)
+                            block.AddStatement(assign);
+                    }
+                    else
+                    {
+                        foreach (var operation in operations)
+                        {
+                            var temp = ProcessOperation(operation, line, line + 1, block);
+
+                            if (temp != null)
+                                assign = temp;
+                        }
+
+                        if (assign != null && assign.GetFirstValue().IsMultiple)
+                            block.AddStatement(assign);
+                    }
+                }
+                else
+                {
+                    assign = ProcessOperation(blockHandler, line, line, block);
+                }
+
+                if (assign != null)
+                {
+                    if (!(newLocals.Count == 0))
+                    {
+                        assign.Declare(newLocals[0].Begin);
+
+                        foreach (var decl in newLocals)
+                            assign.AddLast(new VariableTarget(decl), m_registers.GetValue(decl.Register, line + 1));
+                    }
+                }
+
+                if (blockHandler == null)
+                {
+                    if (assign != null)
+                    {
+                        // TODO: Handle when 'blockHandler' is null and 'assign' is NOT null
+                    }
+                    else if (!(newLocals.Count == 0) && Code.Op(line) != Op.FORPREP)
+                    {
+                        if (Code.Op(line) != Op.JMP || Code.Op(line + 1 + Code.sBx(line)) != m_tForTarget)
+                        {
+                            assign = new Assignment();
+                            assign.Declare(newLocals[0].Begin);
+
+                            foreach (var decl in newLocals)
+                                assign.AddLast(new VariableTarget(decl), m_registers.GetValue(decl.Register, line));
+
+                            blockStack.Peek().AddStatement(assign);
+                        }
+                    }
+                }
+                else
+                {
+                    line--;
+                    continue;
+                }
             }
         }
 
