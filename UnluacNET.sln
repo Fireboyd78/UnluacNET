@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnluacNET", "UnluacNET.csproj", "{ED5D3E22-804B-4BAA-BD7F-F47F19804CF8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unluac", "..\Unluac\Unluac.csproj", "{7A179F6F-2807-4A42-BF9A-3EFE4CFA5355}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{ED5D3E22-804B-4BAA-BD7F-F47F19804CF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ED5D3E22-804B-4BAA-BD7F-F47F19804CF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ED5D3E22-804B-4BAA-BD7F-F47F19804CF8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A179F6F-2807-4A42-BF9A-3EFE4CFA5355}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A179F6F-2807-4A42-BF9A-3EFE4CFA5355}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A179F6F-2807-4A42-BF9A-3EFE4CFA5355}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A179F6F-2807-4A42-BF9A-3EFE4CFA5355}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
