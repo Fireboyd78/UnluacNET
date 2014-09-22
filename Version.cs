@@ -7,6 +7,9 @@ namespace UnluacNET
 {
     public abstract class Version
     {
+        public static readonly Version LUA51 = new Version51();
+        public static readonly Version LUA52 = new Version52();
+
         protected int m_versionNumber;
 
         public abstract bool HasHeaderTail { get; }
