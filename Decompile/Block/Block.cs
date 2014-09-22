@@ -7,7 +7,7 @@ namespace UnluacNET
 {
     public abstract class Block : Statement, IComparable<Block>
     {
-        protected readonly LFunction m_function;
+        protected LFunction Function { get; private set; }
 
         public int Begin { get; set; }
         public int End { get; set; }
@@ -26,7 +26,7 @@ namespace UnluacNET
         public abstract void AddStatement(Statement statement);
         public abstract int GetLoopback();
 
-        public int CompareTo(Block block)
+        public virtual int CompareTo(Block block)
         {
             if (Begin < block.Begin)
             {
@@ -64,24 +64,24 @@ namespace UnluacNET
             }
         }
 
-        public bool Contains(Block block)
+        public virtual bool Contains(Block block)
         {
             return (Begin <= block.Begin) && (End >= block.End);
         }
 
-        public bool Contains(int line)
+        public virtual bool Contains(int line)
         {
             return (Begin <= line) && (line < End);
         }
 
-        public Operation Process(Decompiler d)
+        public virtual Operation Process(Decompiler d)
         {
             return new GenericOperation(ScopeEnd, this);
         }
 
         public Block(LFunction function, int begin, int end)
         {
-            m_function = function;
+            Function = function;
             
             Begin = begin;
             End = end;

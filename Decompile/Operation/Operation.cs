@@ -32,4 +32,20 @@ namespace UnluacNET
             m_statement = statement;
         }
     }
+
+    public class LambdaOperation : Operation
+    {
+        private readonly Func<Registers, Block, Statement> m_func;
+
+        public override Statement Process(Registers r, Block block)
+        {
+            return m_func.Invoke(r, block);
+        }
+
+        public LambdaOperation(int line, Func<Registers, Block, Statement> func)
+            : base(line)
+        {
+            m_func = func;
+        }
+    }
 }
