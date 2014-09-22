@@ -357,6 +357,7 @@ namespace UnluacNET
                                 line,
                                 line + 2,
                                 line + 2 + Code.sBx(line + 1));
+                                break;
                             case Op.LE:
                                 node = new LENode(
                                 B,
@@ -365,6 +366,7 @@ namespace UnluacNET
                                 line,
                                 line + 2,
                                 line + 2 + Code.sBx(line + 1));
+                                break;
                             }
 
                             stack.Push(node);
@@ -1082,7 +1084,7 @@ namespace UnluacNET
 
                             if (m_registers.IsAssignable(set.Register, set.Line))
                             {
-                                assign.AddLast(m_registers.GetTarget(set.Register, set.Line), set.Value));
+                                assign.AddLast(m_registers.GetTarget(set.Register, set.Line), set.Value);
                                 count++;
                             }
                         }
