@@ -73,8 +73,8 @@ namespace UnluacNET
 
                             if (assignment.GetFirstTarget().IsDeclaration(decl))
                             {
-                                var name = (node.Invert) ? "or" : "and";
-                                var precedence = (node.Invert) ? Expression.PRECEDENCE_OR : Expression.PRECEDENCE_AND;
+                                var name = (node.Inverted) ? "or" : "and";
+                                var precedence = (node.Inverted) ? Expression.PRECEDENCE_OR : Expression.PRECEDENCE_AND;
 
                                 var expr = new BinaryExpression(name, new LocalVariable(decl), assignment.GetFirstValue(), precedence, Expression.ASSOCIATIVITY_NONE);
 

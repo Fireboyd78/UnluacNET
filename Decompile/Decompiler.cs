@@ -1000,16 +1000,309 @@ namespace UnluacNET
             }
         }
 
-        // TODO: Finish 'ProcessLine(int)' method
-        private List<Operation> ProcessLine(int line)
+        private LinkedList<Operation> ProcessLine(int line)
         {
-            return null;
+            var operations = new LinkedList<Operation>();
+
+            var A = Code.A(line);
+            var B = Code.B(line);
+            var C = Code.C(line);
+            var Bx = Code.Bx(line);
+
+            switch (Code.Op(line))
+            {
+            case Op.MOVE:
+                operations.AddLast(new RegisterSet(line, A, m_registers.GetExpression(B, line)));
+                break;
+            case Op.LOADK:
+                operations.AddLast(new RegisterSet(line, A, InputChunk.GetConstantExpression(Bx)));
+                break;
+            case Op.LOADBOOL:
+                {
+                    var constant = new Constant((B != 0) ? LBoolean.LTRUE : LBoolean.LFALSE);
+
+                    operations.AddLast(new RegisterSet(line, A, new ConstantExpression(constant, -1)));
+                } break;
+            case Op.LOADNIL:
+                {
+                    var maximum = (Function.Header.Version.UsesOldLoadNilEncoding) ? B : (A + B);
+
+                    while (A <= maximum)
+                    {
+                        operations.AddLast(new RegisterSet(line, A, Expression.NIL));
+                        A++;
+                    }
+                } break;
+            case Op.GETUPVAL:
+                operations.AddLast(new RegisterSet(line, A, m_upvalues.GetExpression(B)));
+                break;
+            case Op.GETTABUP:
+                {
+                    var expr = (B == 0 && (C & 0x100) != 0)
+                        ? InputChunk.GetGlobalExpression(C & 0xFF) as Expression
+                        : new TableReference(m_upvalues.GetExpression(B), m_registers.GetKExpression(C, line)) as Expression;
+
+                    operations.AddLast(new RegisterSet(line, A, expr));
+                } break;
+            case Op.GETGLOBAL:
+                operations.AddLast(new RegisterSet(line, A, InputChunk.GetGlobalExpression(Bx)));
+                break;
+            case Op.GETTABLE:
+                operations.AddLast(new RegisterSet(line, A, new TableReference(m_registers.GetExpression(B, line), m_registers.GetKExpression(C, line))));
+                break;
+            case Op.SETUPVAL:
+                operations.AddLast(new UpvalueSet(line, m_upvalues.GetName(B), m_registers.GetExpression(A, line)));
+                break;
+            case Op.SETTABUP:
+                if (A == 0 && (B & 0x100) != 0)
+                {
+                    //TODO: check
+                    operations.AddLast(new GlobalSet(line, InputChunk.GetGlobalName(B & 0xFF), m_registers.GetKExpression(C, line)));
+                }
+                else
+                {
+                    operations.AddLast(new TableSet(line, m_upvalues.GetExpression(A), m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line), true, line));
+                }
+                break;
+            case Op.SETGLOBAL:
+                operations.AddLast(new GlobalSet(line, InputChunk.GetGlobalName(Bx), m_registers.GetExpression(A, line)));
+                break;
+            case Op.SETTABLE:
+                operations.AddLast(new TableSet(line, m_registers.GetExpression(A, line), m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line), true, line));
+                break;
+            case Op.NEWTABLE:
+                operations.AddLast(new RegisterSet(line, A, new TableLiteral(B, C)));
+                break;
+
+            case Op.SELF:
+                {
+                    // We can later determine is : syntax was used by comparing subexpressions with ==
+                    var common = m_registers.GetExpression(B, line);
+
+                    operations.AddLast(new RegisterSet(line, A + 1, common));
+                    operations.AddLast(new RegisterSet(line, A, new TableReference(common, m_registers.GetKExpression(C, line))));
+                } break;
+
+            case Op.ADD:
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeADD(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                break;
+            case Op.SUB:
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeSUB(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                break;
+            case Op.MUL:
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeMUL(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                break;
+            case Op.DIV:
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeDIV(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                break;
+            case Op.MOD:
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeMOD(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                break;
+            case Op.POW:
+                operations.AddLast(new RegisterSet(line, A, Expression.MakePOW(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                break;
+            case Op.UNM:
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeUNM(m_registers.GetExpression(B, line))));
+                break;
+            case Op.NOT:
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeNOT(m_registers.GetExpression(B, line))));
+                break;
+            case Op.LEN:
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeLEN(m_registers.GetExpression(B, line))));
+                break;
+
+            case Op.CONCAT:
+                {
+                    var value = m_registers.GetExpression(C, line);
+
+                    //Remember that CONCAT is right associative.
+                    while (C-- > B)
+                        value = Expression.MakeCONCAT(m_registers.GetExpression(C, line), value);
+
+                    operations.AddLast(new RegisterSet(line, A, value));
+                } break;
+
+            case Op.JMP:
+            case Op.EQ:
+            case Op.LT:
+            case Op.LE:
+            case Op.TEST:
+            case Op.TESTSET:
+                /* Do nothing ... handled with branches */
+                break;
+
+            case Op.CALL:
+                {
+                    var multiple = (C >= 3 || C == 0);
+
+                    if (B == 0)
+                        B = m_stackSize - A;
+
+                    if (C == 0)
+                        C = m_stackSize - A + 1;
+
+                    var function = m_registers.GetExpression(A, line);
+                    var arguments = new Expression[B - 1];
+
+                    for (int register = A + 1; register <= A + B - 1; register++)
+                        arguments[register - A - 1] = m_registers.GetExpression(register, line);
+
+                    var value = new FunctionCall(function, arguments, multiple);
+
+                    if (C == 1)
+                    {
+                        operations.AddLast(new CallOperation(line, value));
+                    }
+                    else
+                    {
+                        if (C == 2 && !multiple)
+                        {
+                            operations.AddLast(new RegisterSet(line, A, value));
+                        }
+                        else
+                        {
+                            for (int register = A; register <= A + C - 2; register++)
+                                operations.AddLast(new RegisterSet(line, register, value));
+                        }
+                    }
+                } break;
+
+            case Op.TAILCALL:
+                {
+                    if (B == 0)
+                        B = m_stackSize - A;
+
+                    var function = m_registers.GetExpression(A, line);
+                    var arguments = new Expression[B - 1];
+
+                    for (int register = A + 1; register <= A + B - 1; register++)
+                        arguments[register - A - 1] = m_registers.GetExpression(register, line);
+
+                    var value = new FunctionCall(function, arguments, true);
+
+                    operations.AddLast(new ReturnOperation(line, value));
+
+                    m_skip[line + 1] = true;
+                } break;
+
+            case Op.RETURN:
+                {
+                    if (B == 0)
+                        B = m_stackSize - A + 1;
+
+                    var values = new Expression[B - 1];
+
+                    for (int register = A; register <= A + B - 2; register++)
+                        values[register - A] = m_registers.GetExpression(register, line);
+
+                    operations.AddLast(new ReturnOperation(line, values));
+                } break;
+
+            case Op.FORLOOP:
+            case Op.FORPREP:
+            case Op.TFORCALL:
+            case Op.TFORLOOP:
+                /* Do nothing ... handled with branches */
+                break;
+
+            case Op.SETLIST:
+                {
+                    if (C == 0)
+                    {
+                        C = Code.CodePoint(line + 1);
+
+                        m_skip[line + 1] = true;
+                    }
+
+                    if (B == 0)
+                        B = m_stackSize - A - 1;
+
+                    var table = m_registers.GetValue(A, line);
+
+                    for (int i = 1; i <= B; i++)
+                        operations.AddLast(new TableSet(line, table, new ConstantExpression(new Constant((C - 1) * 50 + i), -1), m_registers.GetExpression(A + i, line), false, m_registers.GetUpdated(A + i, line)));
+                } break;
+            case Op.CLOSE:
+                break;
+            case Op.CLOSURE:
+                {
+                    var f = m_functions[Bx];
+
+                    operations.AddLast(new RegisterSet(line, A, new ClosureExpression(f, DeclList, line + 1)));
+                    
+                    if (Function.Header.Version.UsesInlineUpvalueDeclaritions)
+                    {
+                        // Skip upvalue declarations
+                        for (int i = 0; i < f.NumUpValues; i++)
+                            m_skip[line + 1 + i] = true;
+                    }
+                } break;
+            case Op.VARARG:
+                {
+                    var multiple = (B != 2);
+
+                    if (B == 1)
+                        throw new InvalidOperationException();
+
+                    if (B == 0)
+                        B = m_stackSize - A + 1;
+
+                    var value = new Vararg(B - 1, multiple);
+
+                    for (int register = A; register <= A + B - 2; register++)
+                        operations.AddLast(new RegisterSet(line, register, value));
+                } break;
+            default:
+                throw new InvalidOperationException("Illegal instruction: " + Code.Op(line));
+            }
+
+            return operations;
         }
 
-        // TODO: Finish 'ProcessOperation(Operation, int, int, Block)' method
         private Assignment ProcessOperation(Operation operation, int line, int nextLine, Block block)
         {
-            return null;
+            Assignment assign = null;
+            var wasMultiple = false;
+
+            var stmt = operation.Process(m_registers, block);
+
+            // TODO: Optimize code
+            if (stmt != null)
+            {
+                if (stmt is Assignment)
+                {
+                    assign = stmt as Assignment;
+
+                    if (!assign.GetFirstValue().IsMultiple)
+                        block.AddStatement(stmt);
+                    else
+                        wasMultiple = true;
+                }
+                else
+                {
+                    block.AddStatement(stmt);
+                }
+
+                if (assign != null)
+                {
+                    while (nextLine < block.End && IsMoveIntoTarget(nextLine))
+                    {
+                        var target = GetMoveIntoTargetTarget(nextLine, line + 1);
+                        var value = GetMoveIntoTargetValue(nextLine, line + 1); // updated?
+
+                        assign.AddFirst(target, value);
+
+                        m_skip[nextLine] = true;
+
+                        nextLine++;
+                    }
+
+                    if (wasMultiple && !assign.GetFirstValue().IsMultiple)
+                        block.AddStatement(stmt);
+                }
+            }
+
+            return assign;
         }
 
         private void ProcessSequence(int begin, int end)

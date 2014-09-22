@@ -8,7 +8,7 @@ namespace UnluacNET
 {
     public class LStringType : BObjectType<LString>
     {
-        public LString Parse(Stream stream, BHeader header)
+        public override LString Parse(Stream stream, BHeader header)
         {
             var sizeT = header.SizeT.Parse(stream, header);
 

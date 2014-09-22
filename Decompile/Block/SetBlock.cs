@@ -48,6 +48,24 @@ namespace UnluacNET
             return Branch.AsExpression(m_r);
         }
 
+        public override void Print(Output output)
+        {
+            if (m_assign != null)
+            {
+                var target = m_assign.GetFirstTarget();
+
+                if (target != null)
+                {
+                    new Assignment(target, GetValue()).Print(output);
+                }
+                else
+                {
+                    output.Print("-- unhandled set block");
+                    output.PrintLine();
+                }
+            }
+        }
+
         public override Operation Process(Decompiler d)
         {
             if (m_empty)

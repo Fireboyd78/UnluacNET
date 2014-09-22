@@ -17,6 +17,11 @@ namespace UnluacNET
             return String.Format("_UPVALUE{0}_", idx);
         }
 
+        public UpvalueExpression GetExpression(int index)
+        {
+            return new UpvalueExpression(GetName(index));
+        }
+
         public Upvalues(LUpvalue[] upvalues)
         {
             m_upvalues = upvalues;
