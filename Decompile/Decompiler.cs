@@ -1181,11 +1181,102 @@ namespace UnluacNET
             return branch;
         }
 
+        public Branch PopCompareSetCondition(Stack<Branch> stack, int assignEnd)
+        {
+            var top = stack.Pop();
+            var invert = false;
+
+            if (Code.B(top.Begin) == 0)
+                invert = true;
+
+            top.Begin = assignEnd;
+            top.End = assignEnd;
+
+            stack.Push(top);
+
+            // Invert argument doesn't matter because begin == end
+            return PopSetConditionInternal(stack, invert, assignEnd);
+        }
+
         public Branch PopSetCondition(Stack<Branch> stack, int assignEnd)
         {
             stack.Push(new AssignNode(assignEnd - 1, assignEnd, assignEnd));
+            
             //Invert argument doesn't matter because begin == end
-            return _helper_popSetCondition(stack, false, assignEnd);
+            return PopSetConditionInternal(stack, false, assignEnd);
+        }
+
+        private Branch PopSetConditionInternal(Stack<Branch> stack, bool invert, int assignEnd)
+        {
+            var branch = stack.Pop();
+
+            var begin = branch.Begin;
+            var end = branch.End;
+
+            if (invert)
+                branch = branch.Invert();
+
+            if (Code.Op(begin) == Op.LOADBOOL)
+                begin += (Code.C(begin) != 0) ? 2 : 1;
+            if (Code.Op(end) == Op.LOADBOOL)
+                end += (Code.C(end) != 0) ? 2 : 1;
+
+            var target = branch.SetTarget;
+
+            while (!(stack.Count == 0))
+            {
+                var next = stack.Peek();
+                var nInvert = false;
+                var nEnd = next.End;
+
+                if (Code.Op(nEnd) == Op.LOADBOOL)
+                {
+                    nInvert = Code.B(nEnd) != 0;
+                    nEnd += (Code.C(nEnd) != 0) ? 2 : 1;
+                }
+                else if (next is TestNode)
+                {
+                    // also applies to TestSetNode's
+                    nInvert = ((TestNode)next).Inverted;
+                }
+                else if (nEnd >= assignEnd)
+                {
+                        break;
+                }
+
+                var addr = (nInvert == invert) ? end : begin;
+
+                if (addr == nEnd)
+                {
+                    // TODO: Fix impossible statement
+                    //if (addr != nEnd)
+                    //    nInvert = !nInvert;
+
+                    var left = PopSetConditionInternal(stack, nInvert, assignEnd);
+
+                    if (nInvert)
+                        branch = new OrBranch(left, branch);
+                    else
+                        branch = new AndBranch(left, branch);
+
+                    branch.End = nEnd;
+                }
+                else
+                {
+                    if (!(branch is TestSetNode))
+                    {
+                        stack.Push(branch);
+                        branch = PopCondition(stack);
+                    }
+
+                    break;
+                }
+            }
+
+            branch.IsSet = true;
+            branch.SetTarget = target;
+
+            return branch;
         }
 
         public void Print()
