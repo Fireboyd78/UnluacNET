@@ -23,24 +23,14 @@ namespace UnluacNET
 
         public static readonly Expression NIL = new ConstantExpression(new Constant(LNil.NIL), -1);
 
-        public static BinaryExpression MakeCONCAT(Expression left, Expression right)
-        {
-            return new BinaryExpression("..", left, right, PRECEDENCE_CONCAT, ASSOCIATIVITY_RIGHT);
-        }
-
         public static BinaryExpression MakeADD(Expression left, Expression right)
         {
             return new BinaryExpression("+", left, right, PRECEDENCE_ADD, ASSOCIATIVITY_LEFT);
         }
 
-        public static BinaryExpression MakeSUB(Expression left, Expression right)
+        public static BinaryExpression MakeCONCAT(Expression left, Expression right)
         {
-            return new BinaryExpression("-", left, right, PRECEDENCE_ADD, ASSOCIATIVITY_LEFT);
-        }
-
-        public static BinaryExpression MakeMUL(Expression left, Expression right)
-        {
-            return new BinaryExpression("*", left, right, PRECEDENCE_MUL, ASSOCIATIVITY_LEFT);
+            return new BinaryExpression("..", left, right, PRECEDENCE_CONCAT, ASSOCIATIVITY_RIGHT);
         }
 
         public static BinaryExpression MakeDIV(Expression left, Expression right)
@@ -53,9 +43,24 @@ namespace UnluacNET
             return new BinaryExpression("%", left, right, PRECEDENCE_MUL, ASSOCIATIVITY_LEFT);
         }
 
+        public static BinaryExpression MakeMUL(Expression left, Expression right)
+        {
+            return new BinaryExpression("*", left, right, PRECEDENCE_MUL, ASSOCIATIVITY_LEFT);
+        }
+
+        public static BinaryExpression MakeOR(Expression left, Expression right)
+        {
+            return new BinaryExpression("or", left, right, PRECEDENCE_OR, ASSOCIATIVITY_NONE);
+        }
+
         public static BinaryExpression MakePOW(Expression left, Expression right)
         {
             return new BinaryExpression("^", left, right, PRECEDENCE_POW, ASSOCIATIVITY_RIGHT);
+        }
+
+        public static BinaryExpression MakeSUB(Expression left, Expression right)
+        {
+            return new BinaryExpression("-", left, right, PRECEDENCE_ADD, ASSOCIATIVITY_LEFT);
         }
 
         public static UnaryExpression MakeUNM(Expression expression)

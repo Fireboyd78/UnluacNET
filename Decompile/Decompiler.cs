@@ -145,6 +145,70 @@ namespace UnluacNET
             }
         }
 
+        private int GetAssignment(int line)
+        {
+            switch (Code.Op(line))
+            {
+            case Op.MOVE:
+            case Op.LOADK:
+            case Op.LOADBOOL:
+            case Op.GETUPVAL:
+            case Op.GETTABUP:
+            case Op.GETGLOBAL:
+            case Op.GETTABLE:
+            case Op.NEWTABLE:
+            case Op.ADD:
+            case Op.SUB:
+            case Op.MUL:
+            case Op.DIV:
+            case Op.MOD:
+            case Op.POW:
+            case Op.UNM:
+            case Op.NOT:
+            case Op.LEN:
+            case Op.CONCAT:
+            case Op.CLOSURE:
+                return Code.A(line);
+
+            case Op.LOADNIL:
+                return (Code.A(line) == Code.B(line)) ? Code.A(line) : -1;
+
+            case Op.SETGLOBAL:
+            case Op.SETUPVAL:
+            case Op.SETTABUP:
+            case Op.SETTABLE:
+            case Op.JMP:
+            case Op.TAILCALL:
+            case Op.RETURN:
+            case Op.FORLOOP:
+            case Op.FORPREP:
+            case Op.TFORCALL:
+            case Op.TFORLOOP:
+            case Op.CLOSE:
+                return -1;
+
+            case Op.SELF:
+                return -1;
+
+            case Op.EQ:
+            case Op.LT:
+            case Op.LE:
+            case Op.TEST:
+            case Op.TESTSET:
+            case Op.SETLIST:
+                return -1;
+
+            case Op.CALL:
+                return (Code.C(line) == 2) ? Code.A(line) : -1;
+
+            case Op.VARARG:
+                return (Code.C(line) == 2) ? Code.B(line) : -1;
+
+            default:
+                throw new InvalidOperationException("Illegal opcode: " + Code.Op(line));
+            }
+        }
+
         private Target GetMoveIntoTargetTarget(int line, int previous)
         {
             switch (Code.Op(line))
