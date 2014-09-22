@@ -46,6 +46,105 @@ namespace UnluacNET
             ProcessSequence(1, m_length);
         }
 
+        private int BreakTarget(int line)
+        {
+            var tLine = Int32.MaxValue;
+
+            foreach (var block in m_blocks)
+            {
+                if (block.Breakable && block.Contains(line))
+                    tLine = Math.Min(tLine, block.End);
+            }
+
+            if (tLine == Int32.MaxValue)
+                return -1;
+
+            return tLine;
+        }
+
+        private Block EnclosingBlock(int line)
+        {
+            //Assumes the outer block is first
+            var outer = m_blocks[0];
+            var enclosing = outer;
+
+            for (int i = 1; i < m_blocks.Count; i++)
+            {
+                var next = m_blocks[i];
+
+                if (next.IsContainer && enclosing.Contains(next) && next.Contains(line) && !next.LoopRedirectAdjustment)
+                    enclosing = next;
+            }
+
+            return enclosing;
+        }
+
+        private Block EnclosingBlock(Block block)
+        {
+            //Assumes the outer block is first
+            var outer = m_blocks[0];
+            var enclosing = outer;
+
+            for (int i = 1; i < m_blocks.Count; i++)
+            {
+                var next = m_blocks[i];
+
+                if (next == block)
+                    continue;
+
+                if (next.Contains(block) && enclosing.Contains(next))
+                    enclosing = next;
+            }
+
+            return enclosing;
+        }
+
+        private Block EnclosingBreakableBlock(int line)
+        {
+            var outer = m_blocks[0];
+            var enclosing = outer;
+
+            for (int i = 1; i < m_blocks.Count; i++)
+            {
+                var next = m_blocks[i];
+
+                if (enclosing.Contains(next) && next.Contains(line) && next.Breakable && !next.LoopRedirectAdjustment)
+                    enclosing = next;
+            }
+
+            return enclosing == outer ? null : enclosing;
+        }
+
+        private Block EnclosingUnprotectedBlock(int line)
+        {
+            //Assumes the outer block is first
+            var outer = m_blocks[0];
+            var enclosing = outer;
+
+            for (int i = 1; i < m_blocks.Count; i++)
+            {
+                var next = m_blocks[i];
+
+                if (enclosing.Contains(next) && next.Contains(line) && next.IsUnprotected && !next.LoopRedirectAdjustment)
+                    enclosing = next;
+            }
+
+            return enclosing == outer ? null : enclosing;
+        }
+
+        private void FindReverseTargets()
+        {
+            m_reverseTarget = new bool[m_length + 1];
+
+            for (int line = 1; line <= m_length; line++)
+            {
+                var sBx = Code.sBx(line);
+
+                if (Code.Op(line) == Op.JMP && sBx < 0)
+                    m_reverseTarget[line + 1 + sBx] = true;
+            }
+        }
+
         private Target GetMoveIntoTargetTarget(int line, int previous)
         {
             switch (Code.Op(line))
@@ -728,6 +827,46 @@ namespace UnluacNET
 
                 output.PrintLine();
             }
+        }
+
+        public Branch PopCondition(Stack<Branch> stack)
+        {
+            var branch = stack.Pop();
+
+            if (m_backup != null)
+                m_backup.Push(branch);
+
+            if (branch is TestSetNode)
+                throw new InvalidOperationException();
+
+            var begin = branch.Begin;
+
+            if (Code.Op(branch.Begin) == Op.JMP)
+                begin += (1 + Code.sBx(branch.Begin));
+
+            while (!(stack.Count == 0))
+            {
+                var next = stack.Peek();
+
+                if (next is TestSetNode)
+                    break;
+
+                if (next.End == begin)
+                    branch = new OrBranch(PopCondition(stack).Invert(), branch);
+                else if (next.End == branch.End)
+                    branch = new AndBranch(PopCondition(stack), branch);
+                else
+                    break;
+            }
+
+            break;
+        }
+
+        public Branch PopSetCondition(Stack<Branch> stack, int assignEnd)
+        {
+            stack.Push(new AssignNode(assignEnd - 1, assignEnd, assignEnd));
+            //Invert argument doesn't matter because begin == end
+            return _helper_popSetCondition(stack, false, assignEnd);
         }
 
         public void Print()
