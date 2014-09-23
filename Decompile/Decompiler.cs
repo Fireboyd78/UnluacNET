@@ -9,48 +9,36 @@ namespace UnluacNET
     {
         private static Stack<Branch> m_backup;
 
-        private readonly int m_stackSize;
-        private readonly int m_length;
-        private readonly Upvalues m_upvalues;
+        private readonly int registers;
+        private readonly int length;
+        private readonly Upvalues upvalues;
 
-        private readonly LFunction[] m_functions;
+        private readonly LFunction[] functions;
         private readonly int m_params;
-        private readonly int m_vararg;
+        private readonly int vararg;
 
-        private readonly Op m_tForTarget;
+        private readonly Op tForTarget;
 
-        private Registers m_registers;
-        private Block m_outer;
+        private Registers r;
+        private Block outer;
 
-        private List<Block> m_blocks;
+        private List<Block> blocks;
 
-        private bool[] m_skip;
-        private bool[] m_reverseTarget;
+        private bool[] skip;
+        private bool[] reverseTarget;
 
         public Code Code { get; private set; }
         public Declaration[] DeclList { get; private set; }
 
         // TODO: Pick better names
-        protected Function InputChunk { get; set; }
+        protected Function F { get; set; }
         protected LFunction Function { get; set; }
-
-        public void Decompile()
-        {
-            m_registers = new Registers(m_stackSize, m_length, DeclList, InputChunk);
-
-            FindReverseTargets();
-            HandleBranches(true);
-
-            m_outer = HandleBranches(false);
-
-            ProcessSequence(1, m_length);
-        }
 
         private int BreakTarget(int line)
         {
             var tLine = Int32.MaxValue;
 
-            foreach (var block in m_blocks)
+            foreach (var block in blocks)
             {
                 if (block.Breakable && block.Contains(line))
                     tLine = Math.Min(tLine, block.End);
@@ -62,15 +50,27 @@ namespace UnluacNET
             return tLine;
         }
 
+        public void Decompile()
+        {
+            r = new Registers(registers, length, DeclList, F);
+
+            FindReverseTargets();
+            HandleBranches(true);
+
+            outer = HandleBranches(false);
+
+            ProcessSequence(1, length);
+        }
+
         private Block EnclosingBlock(int line)
         {
             //Assumes the outer block is first
-            var outer = m_blocks[0];
+            var outer = blocks[0];
             var enclosing = outer;
 
-            for (int i = 1; i < m_blocks.Count; i++)
+            for (int i = 1; i < blocks.Count; i++)
             {
-                var next = m_blocks[i];
+                var next = blocks[i];
 
                 if (next.IsContainer && enclosing.Contains(next) && next.Contains(line) && !next.LoopRedirectAdjustment)
                     enclosing = next;
@@ -82,12 +82,12 @@ namespace UnluacNET
         private Block EnclosingBlock(Block block)
         {
             //Assumes the outer block is first
-            var outer = m_blocks[0];
+            var outer = blocks[0];
             var enclosing = outer;
 
-            for (int i = 1; i < m_blocks.Count; i++)
+            for (int i = 1; i < blocks.Count; i++)
             {
-                var next = m_blocks[i];
+                var next = blocks[i];
 
                 if (next == block)
                     continue;
@@ -101,14 +101,14 @@ namespace UnluacNET
 
         private Block EnclosingBreakableBlock(int line)
         {
-            var outer = m_blocks[0];
+            var outer = blocks[0];
             var enclosing = outer;
 
-            for (int i = 1; i < m_blocks.Count; i++)
+            for (int i = 1; i < blocks.Count; i++)
             {
-                var next = m_blocks[i];
+                var next = blocks[i];
 
-                if (enclosing.Contains(next) && next.Contains(line) && next.Breakable && !next.LoopRedirectAdjustment)
+                if (next.Contains(line) && enclosing.Contains(next) && next.Breakable && !next.LoopRedirectAdjustment)
                     enclosing = next;
             }
 
@@ -118,14 +118,14 @@ namespace UnluacNET
         private Block EnclosingUnprotectedBlock(int line)
         {
             //Assumes the outer block is first
-            var outer = m_blocks[0];
+            var outer = blocks[0];
             var enclosing = outer;
 
-            for (int i = 1; i < m_blocks.Count; i++)
+            for (int i = 1; i < blocks.Count; i++)
             {
-                var next = m_blocks[i];
+                var next = blocks[i];
 
-                if (enclosing.Contains(next) && next.Contains(line) && next.IsUnprotected && !next.LoopRedirectAdjustment)
+                if (next.Contains(line) && enclosing.Contains(next) && next.IsUnprotected && !next.LoopRedirectAdjustment)
                     enclosing = next;
             }
 
@@ -134,14 +134,14 @@ namespace UnluacNET
 
         private void FindReverseTargets()
         {
-            m_reverseTarget = new bool[m_length + 1];
+            reverseTarget = new bool[length + 1];
 
-            for (int line = 1; line <= m_length; line++)
+            for (int line = 1; line <= length; line++)
             {
                 var sBx = Code.sBx(line);
 
                 if (Code.Op(line) == Op.JMP && sBx < 0)
-                    m_reverseTarget[line + 1 + sBx] = true;
+                    reverseTarget[line + 1 + sBx] = true;
             }
         }
 
@@ -214,15 +214,15 @@ namespace UnluacNET
             switch (Code.Op(line))
             {
             case Op.MOVE:
-                return m_registers.GetTarget(Code.A(line), line);
+                return r.GetTarget(Code.A(line), line);
             case Op.SETUPVAL:
-                return new UpvalueTarget(m_upvalues.GetName(Code.B(line)));
+                return new UpvalueTarget(upvalues.GetName(Code.B(line)));
             case Op.SETGLOBAL:
-                return new GlobalTarget(InputChunk.GetGlobalName(Code.Bx(line)));
+                return new GlobalTarget(F.GetGlobalName(Code.Bx(line)));
             case Op.SETTABLE:
                 return new TableTarget(
-                    m_registers.GetExpression(Code.A(line), previous),
-                    m_registers.GetKExpression(Code.B(line), previous));
+                    r.GetExpression(Code.A(line), previous),
+                    r.GetKExpression(Code.B(line), previous));
             default:
                 throw new InvalidOperationException();
             }
@@ -237,16 +237,16 @@ namespace UnluacNET
             switch (Code.Op(line))
             {
             case Op.MOVE:
-                return m_registers.GetValue(B, previous);
+                return r.GetValue(B, previous);
             case Op.SETUPVAL:
             case Op.SETGLOBAL:
-                return m_registers.GetExpression(A, previous);
+                return r.GetExpression(A, previous);
             case Op.SETTABLE:
                 {
                     if ((C & 0x100) != 0)
                         throw new InvalidOperationException();
 
-                    return m_registers.GetExpression(C, previous);
+                    return r.GetExpression(C, previous);
                 }
             default:
                 throw new InvalidOperationException();
@@ -256,37 +256,37 @@ namespace UnluacNET
         // TODO: Optimize / rewrite method
         private OuterBlock HandleBranches(bool first)
         {
-            var oldBlocks = m_blocks;
+            var oldBlocks = blocks;
 
-            m_blocks = new List<Block>();
+            blocks = new List<Block>();
 
-            var outer = new OuterBlock(Function, m_length);
+            var outer = new OuterBlock(Function, length);
 
-            m_blocks.Add(outer);
+            blocks.Add(outer);
 
-            var isBreak = new bool[m_length + 1];
-            var loopRemoved = new bool[m_length + 1];
+            var isBreak = new bool[length + 1];
+            var loopRemoved = new bool[length + 1];
 
             if (!first)
             {
                 foreach (var block in oldBlocks)
                 {
                     if (block is AlwaysLoop)
-                        m_blocks.Add(block);
+                        blocks.Add(block);
                     if (block is Break)
                     {
-                        m_blocks.Add(block);
+                        blocks.Add(block);
                         isBreak[block.Begin] = true;
                     }
                 }
 
                 var delete = new LinkedList<Block>();
 
-                foreach (var block in m_blocks)
+                foreach (var block in blocks)
                 {
                     if (block is AlwaysLoop)
                     {
-                        foreach (var block2 in m_blocks)
+                        foreach (var block2 in blocks)
                         {
                             if (block != block2 && block.Begin == block2.Begin)
                             {
@@ -306,10 +306,10 @@ namespace UnluacNET
                 }
 
                 foreach (var block in delete)
-                    m_blocks.Remove(block);
+                    blocks.Remove(block);
             }
 
-            m_skip = new bool[m_length + 1];
+            skip = new bool[length + 1];
 
             var stack = new Stack<Branch>();
 
@@ -317,9 +317,9 @@ namespace UnluacNET
             var testSet = false;
             var testSetEnd = -1;
 
-            for (int line = 1; line <= m_length; line++)
+            for (int line = 1; line <= length; line++)
             {
-                if (!m_skip[line])
+                if (!skip[line])
                 {
                     var A = Code.A(line);
                     var B = Code.B(line);
@@ -371,7 +371,7 @@ namespace UnluacNET
 
                             stack.Push(node);
 
-                            m_skip[line + 1] = true;
+                            skip[line + 1] = true;
 
                             if (Code.Op(node.End) == Op.LOADBOOL)
                             {
@@ -399,7 +399,7 @@ namespace UnluacNET
                                 line + 2,
                                 line + 2 + Code.sBx(line + 1)));
 
-                            m_skip[line + 1] = true;
+                            skip[line + 1] = true;
                         } continue;
                     case Op.TESTSET:
                         {
@@ -414,7 +414,7 @@ namespace UnluacNET
                                 line + 2,
                                 line + 2 + Code.sBx(line + 1)));
 
-                            m_skip[line + 1] = true;
+                            skip[line + 1] = true;
                         } continue;
                     case Op.JMP:
                         {
@@ -432,9 +432,9 @@ namespace UnluacNET
                                     line + 1,
                                     tLine));
 
-                                m_skip[line + 1] = true;
+                                skip[line + 1] = true;
                             }
-                            else if (Code.Op(tLine) == m_tForTarget && !m_skip[tLine])
+                            else if (Code.Op(tLine) == tForTarget && !skip[tLine])
                             {
                                 var tA = Code.A(tLine);
                                 var tC = Code.C(tLine);
@@ -442,35 +442,30 @@ namespace UnluacNET
                                 if (tC == 0)
                                     throw new InvalidOperationException();
 
-                                m_registers.SetInternalLoopVariable(tA, tLine, line + 1); // TODO: end?
-                                m_registers.SetInternalLoopVariable(tA + 1, tLine, line + 1);
-                                m_registers.SetInternalLoopVariable(tA + 2, tLine, line + 1);
+                                r.SetInternalLoopVariable(tA, tLine, line + 1); // TODO: end?
+                                r.SetInternalLoopVariable(tA + 1, tLine, line + 1);
+                                r.SetInternalLoopVariable(tA + 2, tLine, line + 1);
 
                                 for (int index = 1; index <= tC; index++)
-                                {
-                                    m_registers.SetExplicitLoopVariable(
-                                        tA + 2 + index,
-                                        line,
-                                        tLine + 2); // TODO: end?
-                                }
+                                    r.SetExplicitLoopVariable( tA + 2 + index, line, tLine + 2); // TODO: end?
 
-                                m_skip[tLine] = true;
-                                m_skip[tLine + 1] = true;
+                                skip[tLine] = true;
+                                skip[tLine + 1] = true;
 
-                                m_blocks.Add(new TForBlock(
+                                blocks.Add(new TForBlock(
                                     Function,
                                     line + 1,
                                     tLine + 2,
                                     tA,
                                     tC,
-                                    m_registers));
+                                    r));
                             }
                             else if (Code.sBx(line) == 2 &&
                                 Code.Op(line + 1) == Op.LOADBOOL &&
                                 Code.C(line + 1) != 0)
                             {
                                 /* This is the tail of a boolean set with a compare node and assign node */
-                                m_blocks.Add(new BooleanIndicator(Function, line));
+                                blocks.Add(new BooleanIndicator(Function, line));
                             }
                             else
                             {
@@ -479,7 +474,7 @@ namespace UnluacNET
                                     if (tLine > line)
                                     {
                                         isBreak[line] = true;
-                                        m_blocks.Add(new Break(Function, line, tLine));
+                                        blocks.Add(new Break(Function, line, tLine));
                                     }
                                     else
                                     {
@@ -487,15 +482,15 @@ namespace UnluacNET
 
                                         if (enclosing != null &&
                                             enclosing.Breakable &&
-                                            (Code.Op(enclosing.End) == Op.JMP) &&
-                                            (Code.sBx(enclosing.End) + enclosing.End + 1 == tLine))
+                                            Code.Op(enclosing.End) == Op.JMP &&
+                                            Code.sBx(enclosing.End) + enclosing.End + 1 == tLine)
                                         {
                                             isBreak[line] = true;
-                                            m_blocks.Add(new Break(Function, line, enclosing.End));
+                                            blocks.Add(new Break(Function, line, enclosing.End));
                                         }
                                         else
                                         {
-                                            m_blocks.Add(new AlwaysLoop(Function, tLine, line + 1));
+                                            blocks.Add(new AlwaysLoop(Function, tLine, line + 1));
                                         }
                                     }
                                 }
@@ -505,20 +500,20 @@ namespace UnluacNET
                         {
                             reduce = true;
 
-                            m_blocks.Add(new ForBlock(
+                            blocks.Add(new ForBlock(
                                 Function,
                                 line + 1,
                                 line + 2 + sBx,
                                 A,
-                                m_registers));
+                                r));
 
-                            m_skip[line + 1 + sBx] = true;
+                            skip[line + 1 + sBx] = true;
 
-                            m_registers.SetInternalLoopVariable(A, line, line + 2 + sBx);
-                            m_registers.SetInternalLoopVariable(A + 1, line, line + 2 + sBx);
-                            m_registers.SetInternalLoopVariable(A + 2, line, line + 2 + sBx);
+                            r.SetInternalLoopVariable(A, line, line + 2 + sBx);
+                            r.SetInternalLoopVariable(A + 1, line, line + 2 + sBx);
+                            r.SetInternalLoopVariable(A + 2, line, line + 2 + sBx);
                             
-                            m_registers.SetExplicitLoopVariable(A + 3, line, line + 2 + sBx);
+                            r.SetExplicitLoopVariable(A + 3, line, line + 2 + sBx);
                         } break;
                     case Op.FORLOOP:
                         // Should be skipped by preceding FORPREP
@@ -529,11 +524,11 @@ namespace UnluacNET
                     }
                 }
 
-                if (((line + 1) <= m_length && m_reverseTarget[line + 1]) ||
-                    testSet && testSetEnd == line + 1)
-                {
+                if ((line + 1) <= length && reverseTarget[line + 1])
                     reduce = true;
-                }
+
+                if (testSet && testSetEnd == line + 1)
+                    reduce = true;
 
                 if (stack.Count == 0)
                     reduce = false;
@@ -610,10 +605,10 @@ namespace UnluacNET
                             }
                         }
                         else if (assignEnd - 1 >= 1 &&
-                            m_registers.IsLocal(GetAssignment(assignEnd - 1), assignEnd - 1) &&
+                            r.IsLocal(GetAssignment(assignEnd - 1), assignEnd - 1) &&
                             assignEnd > peekNode.Line)
                         {
-                            var decl = m_registers.GetDeclaration(GetAssignment(assignEnd - 1), assignEnd - 1);
+                            var decl = r.GetDeclaration(GetAssignment(assignEnd - 1), assignEnd - 1);
 
                             if (decl.Begin == assignEnd - 1 && decl.End > assignEnd - 1)
                                 isAssignNode = true;
@@ -696,9 +691,8 @@ namespace UnluacNET
                         /* A branch has a tail if the instruction just before the end target is JMP */
                         var hasTail = cond.End >= 2 && Code.Op(cond.End - 1) == Op.JMP;
 
-
                         /* This is the target of the tail JMP */
-                        var tail = hasTail ? (cond.End + Code.sBx(cond.End - 1)) & 0x1FFFF : -1;
+                        var tail = hasTail ? cond.End + Code.sBx(cond.End - 1) : -1;
                         var originalTail = tail;
 
                         var enclosing = EnclosingUnprotectedBlock(cond.Begin);
@@ -730,7 +724,7 @@ namespace UnluacNET
                                 empty = true;
                             }
 
-                            m_blocks.Add(new SetBlock(Function, cond, cond.SetTarget, line, cond.Begin, cond.End, empty, m_registers));
+                            blocks.Add(new SetBlock(Function, cond, cond.SetTarget, line, cond.Begin, cond.End, empty, r));
                         }
                         else if (Code.Op(cond.Begin) == Op.LOADBOOL && Code.C(cond.Begin) != 0)
                         {
@@ -740,14 +734,18 @@ namespace UnluacNET
                             if (Code.B(begin) == 0)
                                 cond = cond.Invert();
 
-                            m_blocks.Add(new CompareBlock(Function, begin, begin + 2, target, cond));
+                            blocks.Add(new CompareBlock(Function, begin, begin + 2, target, cond));
                         }
                         else if (cond.End < cond.Begin)
                         {
-                            m_blocks.Add(new RepeatBlock(Function, cond, m_registers));
+                            blocks.Add(new RepeatBlock(Function, cond, r));
                         }
                         else if (hasTail)
                         {
+                            // this is ridiculous
+                            if (tail > length)
+                                tail = tail & 0xFFFF;
+
                             var endOp = Code.Op(cond.End - 2);
 
                             var isEndCondJump = endOp == Op.EQ || endOp == Op.LE || endOp == Op.LT || endOp == Op.TEST || endOp == Op.TESTSET;
@@ -764,18 +762,18 @@ namespace UnluacNET
                                 if (isBreakableLoopEnd && loopback2 <= cond.Begin && !isBreak[tail - 1])
                                 {
                                     /* (ends with break) */
-                                    m_blocks.Add(new IfThenEndBlock(Function, cond, backup, m_registers));
+                                    blocks.Add(new IfThenEndBlock(Function, cond, backup, r));
                                 }
                                 else
                                 {
-                                    m_skip[cond.End - 1] = true; // Skip the JMP over the else block
+                                    skip[cond.End - 1] = true; // Skip the JMP over the else block
 
                                     var emptyElse = tail == cond.End;
 
-                                    m_blocks.Add(new IfThenElseBlock(Function, cond, originalTail, emptyElse, m_registers));
+                                    blocks.Add(new IfThenElseBlock(Function, cond, originalTail, emptyElse, r));
 
                                     if (!emptyElse)
-                                        m_blocks.Add(new ElseEndBlock(Function, cond.End, tail));
+                                        blocks.Add(new ElseEndBlock(Function, cond.End, tail));
 
                                 }
                             }
@@ -786,7 +784,7 @@ namespace UnluacNET
 
                                 for (int sl = loopback; sl < cond.Begin; sl++)
                                 {
-                                    if (!m_skip[sl] && IsStatement(sl))
+                                    if (!skip[sl] && IsStatement(sl))
                                     {
                                         existsStatement = true;
                                         break;
@@ -796,21 +794,21 @@ namespace UnluacNET
                                 //TODO: check for 5.2-style if cond then break end
                                 if (loopback >= cond.Begin || existsStatement)
                                 {
-                                    m_blocks.Add(new IfThenEndBlock(Function, cond, backup, m_registers));
+                                    blocks.Add(new IfThenEndBlock(Function, cond, backup, r));
                                 }
                                 else
                                 {
-                                    m_skip[cond.End - 1] = true;
-                                    m_blocks.Add(new WhileBlock(Function, cond, originalTail, m_registers));
+                                    skip[cond.End - 1] = true;
+                                    blocks.Add(new WhileBlock(Function, cond, originalTail, r));
                                 }
                             }
                         }
                         else
                         {
-                            m_blocks.Add(new IfThenEndBlock(Function, cond, backup, m_registers));
+                            blocks.Add(new IfThenEndBlock(Function, cond, backup, r));
                         }
 
-                    } while (!(conditions.Count == 0));
+                    } while (conditions.Count > 0);
                 }
             }
 
@@ -821,7 +819,7 @@ namespace UnluacNET
                 {
                     var needsDoEnd = true;
 
-                    foreach (var block in m_blocks)
+                    foreach (var block in blocks)
                     {
                         if (block.Contains(decl.Begin) &&
                             (block.ScopeEnd == decl.End))
@@ -836,7 +834,7 @@ namespace UnluacNET
                         //Without accounting for the order of declarations, we might
                         //create another do..end block later that would eliminate the
                         //need for this one. But order of decls should fix this.
-                        m_blocks.Add(new DoEndBlock(Function, decl.Begin, decl.End + 1));
+                        blocks.Add(new DoEndBlock(Function, decl.Begin, decl.End + 1));
                     }
                 }
             }
@@ -844,18 +842,47 @@ namespace UnluacNET
             // Remove breaks that were later parsed as else jumps
             var newBlocks = new List<Block>();
 
-            foreach (var block in m_blocks)
+            foreach (var block in blocks)
             {
-                if (m_skip[block.Begin] && block is Break)
+                if (skip[block.Begin] && block is Break)
                     continue;
 
                 newBlocks.Add(block);
             }
 
-            m_blocks = newBlocks;
+            newBlocks.Sort();
+
+            blocks = newBlocks;
             m_backup = null;
 
             return outer;
+        }
+
+        private void HandleInitialDeclares(Output output)
+        {
+            var initDecls = new List<Declaration>(DeclList.Length);
+
+            for (int i = m_params + (vararg & 1); i < DeclList.Length; i++)
+            {
+                var decl = DeclList[i];
+
+                if (decl.Begin == 0)
+                    initDecls.Add(decl);
+            }
+
+            if (initDecls.Count > 0)
+            {
+                output.Print("local ");
+                output.Print(initDecls[0].Name);
+
+                for (int i = 1; i < initDecls.Count; i++)
+                {
+                    output.Print(", ");
+                    output.Print(initDecls[i].Name);
+                }
+
+                output.PrintLine();
+            }
         }
 
         private bool IsMoveIntoTarget(int line)
@@ -863,17 +890,17 @@ namespace UnluacNET
             switch (Code.Op(line))
             {
             case Op.MOVE:
-                return m_registers.IsAssignable(Code.A(line), line) &&
-                    !m_registers.IsLocal(Code.B(line), line);
+                return r.IsAssignable(Code.A(line), line) &&
+                    !r.IsLocal(Code.B(line), line);
 
             case Op.SETUPVAL:
             case Op.SETGLOBAL:
-                return !m_registers.IsLocal(Code.A(line), line);
+                return !r.IsLocal(Code.A(line), line);
 
             case Op.SETTABLE:
                 {
                     var c = Code.C(line);
-                    return (c & 0x100) != 0 ? false : !m_registers.IsLocal(c, line);
+                    return (c & 0x100) != 0 ? false : !r.IsLocal(c, line);
                 }
 
             default:
@@ -909,12 +936,12 @@ namespace UnluacNET
             case Op.LEN:
             case Op.CONCAT:
             case Op.CLOSURE:
-                return m_registers.IsLocal(Code.A(line), line) || Code.A(line) == testRegister;
+                return r.IsLocal(Code.A(line), line) || Code.A(line) == testRegister;
 
             case Op.LOADNIL:
                 for (int register = Code.A(line); register <= Code.B(line); register++)
                 {
-                    if (m_registers.IsLocal(register, line))
+                    if (r.IsLocal(register, line))
                         return true;
                 }
 
@@ -936,7 +963,7 @@ namespace UnluacNET
             case Op.SELF:
                 {
                     var a = Code.A(line);
-                    return m_registers.IsLocal(a, line) || m_registers.IsLocal(a + 1, line);
+                    return r.IsLocal(a, line) || r.IsLocal(a + 1, line);
                 }
             case Op.EQ:
             case Op.LT:
@@ -954,11 +981,11 @@ namespace UnluacNET
                         return true;
 
                     if (c == 0)
-                        c = m_stackSize - a + 1;
+                        c = registers - a + 1;
 
                     for (int register = a; register < a + c - 1; register++)
                     {
-                        if (m_registers.IsLocal(register, line))
+                        if (r.IsLocal(register, line))
                             return true;
                     }
 
@@ -970,11 +997,11 @@ namespace UnluacNET
                     int b = Code.B(line);
                     
                     if (b == 0)
-                        b = m_stackSize - a + 1;
+                        b = registers - a + 1;
                     
                     for (int register = a; register < a + b - 1; register++)
                     {
-                        if (m_registers.IsLocal(register, line))
+                        if (r.IsLocal(register, line))
                             return true;
                     }
 
@@ -982,33 +1009,6 @@ namespace UnluacNET
                 }
             default:
                 throw new InvalidOperationException("Illegal opcode: " + Code.Op(line));
-            }
-        }
-
-        private void HandleInitialDeclares(Output output)
-        {
-            var initDecls = new List<Declaration>(DeclList.Length);
-
-            for (int i = m_params + (m_vararg & 1); i < DeclList.Length; i++)
-            {
-                var decl = DeclList[i];
-
-                if (decl.Begin == 0)
-                    initDecls.Add(decl);
-            }
-
-            if (initDecls.Count > 0)
-            {
-                output.Print("local ");
-                output.Print(initDecls[0].Name);
-
-                for (int i = 1; i < initDecls.Count; i++)
-                {
-                    output.Print(", ");
-                    output.Print(initDecls[i].Name);
-                }
-
-                output.PrintLine();
             }
         }
 
@@ -1024,10 +1024,10 @@ namespace UnluacNET
             switch (Code.Op(line))
             {
             case Op.MOVE:
-                operations.AddLast(new RegisterSet(line, A, m_registers.GetExpression(B, line)));
+                operations.AddLast(new RegisterSet(line, A, r.GetExpression(B, line)));
                 break;
             case Op.LOADK:
-                operations.AddLast(new RegisterSet(line, A, InputChunk.GetConstantExpression(Bx)));
+                operations.AddLast(new RegisterSet(line, A, F.GetConstantExpression(Bx)));
                 break;
             case Op.LOADBOOL:
                 {
@@ -1046,41 +1046,41 @@ namespace UnluacNET
                     }
                 } break;
             case Op.GETUPVAL:
-                operations.AddLast(new RegisterSet(line, A, m_upvalues.GetExpression(B)));
+                operations.AddLast(new RegisterSet(line, A, upvalues.GetExpression(B)));
                 break;
             case Op.GETTABUP:
                 {
                     var expr = (B == 0 && (C & 0x100) != 0)
-                        ? InputChunk.GetGlobalExpression(C & 0xFF) as Expression
-                        : new TableReference(m_upvalues.GetExpression(B), m_registers.GetKExpression(C, line)) as Expression;
+                        ? F.GetGlobalExpression(C & 0xFF) as Expression
+                        : new TableReference(upvalues.GetExpression(B), r.GetKExpression(C, line)) as Expression;
 
                     operations.AddLast(new RegisterSet(line, A, expr));
                 } break;
             case Op.GETGLOBAL:
-                operations.AddLast(new RegisterSet(line, A, InputChunk.GetGlobalExpression(Bx)));
+                operations.AddLast(new RegisterSet(line, A, F.GetGlobalExpression(Bx)));
                 break;
             case Op.GETTABLE:
-                operations.AddLast(new RegisterSet(line, A, new TableReference(m_registers.GetExpression(B, line), m_registers.GetKExpression(C, line))));
+                operations.AddLast(new RegisterSet(line, A, new TableReference(r.GetExpression(B, line), r.GetKExpression(C, line))));
                 break;
             case Op.SETUPVAL:
-                operations.AddLast(new UpvalueSet(line, m_upvalues.GetName(B), m_registers.GetExpression(A, line)));
+                operations.AddLast(new UpvalueSet(line, upvalues.GetName(B), r.GetExpression(A, line)));
                 break;
             case Op.SETTABUP:
                 if (A == 0 && (B & 0x100) != 0)
                 {
                     //TODO: check
-                    operations.AddLast(new GlobalSet(line, InputChunk.GetGlobalName(B & 0xFF), m_registers.GetKExpression(C, line)));
+                    operations.AddLast(new GlobalSet(line, F.GetGlobalName(B & 0xFF), r.GetKExpression(C, line)));
                 }
                 else
                 {
-                    operations.AddLast(new TableSet(line, m_upvalues.GetExpression(A), m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line), true, line));
+                    operations.AddLast(new TableSet(line, upvalues.GetExpression(A), r.GetKExpression(B, line), r.GetKExpression(C, line), true, line));
                 }
                 break;
             case Op.SETGLOBAL:
-                operations.AddLast(new GlobalSet(line, InputChunk.GetGlobalName(Bx), m_registers.GetExpression(A, line)));
+                operations.AddLast(new GlobalSet(line, F.GetGlobalName(Bx), r.GetExpression(A, line)));
                 break;
             case Op.SETTABLE:
-                operations.AddLast(new TableSet(line, m_registers.GetExpression(A, line), m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line), true, line));
+                operations.AddLast(new TableSet(line, r.GetExpression(A, line), r.GetKExpression(B, line), r.GetKExpression(C, line), true, line));
                 break;
             case Op.NEWTABLE:
                 operations.AddLast(new RegisterSet(line, A, new TableLiteral(B, C)));
@@ -1089,47 +1089,47 @@ namespace UnluacNET
             case Op.SELF:
                 {
                     // We can later determine is : syntax was used by comparing subexpressions with ==
-                    var common = m_registers.GetExpression(B, line);
+                    var common = r.GetExpression(B, line);
 
                     operations.AddLast(new RegisterSet(line, A + 1, common));
-                    operations.AddLast(new RegisterSet(line, A, new TableReference(common, m_registers.GetKExpression(C, line))));
+                    operations.AddLast(new RegisterSet(line, A, new TableReference(common, r.GetKExpression(C, line))));
                 } break;
 
             case Op.ADD:
-                operations.AddLast(new RegisterSet(line, A, Expression.MakeADD(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeADD(r.GetKExpression(B, line), r.GetKExpression(C, line))));
                 break;
             case Op.SUB:
-                operations.AddLast(new RegisterSet(line, A, Expression.MakeSUB(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeSUB(r.GetKExpression(B, line), r.GetKExpression(C, line))));
                 break;
             case Op.MUL:
-                operations.AddLast(new RegisterSet(line, A, Expression.MakeMUL(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeMUL(r.GetKExpression(B, line), r.GetKExpression(C, line))));
                 break;
             case Op.DIV:
-                operations.AddLast(new RegisterSet(line, A, Expression.MakeDIV(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeDIV(r.GetKExpression(B, line), r.GetKExpression(C, line))));
                 break;
             case Op.MOD:
-                operations.AddLast(new RegisterSet(line, A, Expression.MakeMOD(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeMOD(r.GetKExpression(B, line), r.GetKExpression(C, line))));
                 break;
             case Op.POW:
-                operations.AddLast(new RegisterSet(line, A, Expression.MakePOW(m_registers.GetKExpression(B, line), m_registers.GetKExpression(C, line))));
+                operations.AddLast(new RegisterSet(line, A, Expression.MakePOW(r.GetKExpression(B, line), r.GetKExpression(C, line))));
                 break;
             case Op.UNM:
-                operations.AddLast(new RegisterSet(line, A, Expression.MakeUNM(m_registers.GetExpression(B, line))));
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeUNM(r.GetExpression(B, line))));
                 break;
             case Op.NOT:
-                operations.AddLast(new RegisterSet(line, A, Expression.MakeNOT(m_registers.GetExpression(B, line))));
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeNOT(r.GetExpression(B, line))));
                 break;
             case Op.LEN:
-                operations.AddLast(new RegisterSet(line, A, Expression.MakeLEN(m_registers.GetExpression(B, line))));
+                operations.AddLast(new RegisterSet(line, A, Expression.MakeLEN(r.GetExpression(B, line))));
                 break;
 
             case Op.CONCAT:
                 {
-                    var value = m_registers.GetExpression(C, line);
+                    var value = r.GetExpression(C, line);
 
                     //Remember that CONCAT is right associative.
                     while (C-- > B)
-                        value = Expression.MakeCONCAT(m_registers.GetExpression(C, line), value);
+                        value = Expression.MakeCONCAT(r.GetExpression(C, line), value);
 
                     operations.AddLast(new RegisterSet(line, A, value));
                 } break;
@@ -1148,16 +1148,16 @@ namespace UnluacNET
                     var multiple = (C >= 3 || C == 0);
 
                     if (B == 0)
-                        B = m_stackSize - A;
+                        B = registers - A;
 
                     if (C == 0)
-                        C = m_stackSize - A + 1;
+                        C = registers - A + 1;
 
-                    var function = m_registers.GetExpression(A, line);
+                    var function = r.GetExpression(A, line);
                     var arguments = new Expression[B - 1];
 
                     for (int register = A + 1; register <= A + B - 1; register++)
-                        arguments[register - A - 1] = m_registers.GetExpression(register, line);
+                        arguments[register - A - 1] = r.GetExpression(register, line);
 
                     var value = new FunctionCall(function, arguments, multiple);
 
@@ -1182,30 +1182,30 @@ namespace UnluacNET
             case Op.TAILCALL:
                 {
                     if (B == 0)
-                        B = m_stackSize - A;
+                        B = registers - A;
 
-                    var function = m_registers.GetExpression(A, line);
+                    var function = r.GetExpression(A, line);
                     var arguments = new Expression[B - 1];
 
                     for (int register = A + 1; register <= A + B - 1; register++)
-                        arguments[register - A - 1] = m_registers.GetExpression(register, line);
+                        arguments[register - A - 1] = r.GetExpression(register, line);
 
                     var value = new FunctionCall(function, arguments, true);
 
                     operations.AddLast(new ReturnOperation(line, value));
 
-                    m_skip[line + 1] = true;
+                    skip[line + 1] = true;
                 } break;
 
             case Op.RETURN:
                 {
                     if (B == 0)
-                        B = m_stackSize - A + 1;
+                        B = registers - A + 1;
 
                     var values = new Expression[B - 1];
 
                     for (int register = A; register <= A + B - 2; register++)
-                        values[register - A] = m_registers.GetExpression(register, line);
+                        values[register - A] = r.GetExpression(register, line);
 
                     operations.AddLast(new ReturnOperation(line, values));
                 } break;
@@ -1223,22 +1223,22 @@ namespace UnluacNET
                     {
                         C = Code.CodePoint(line + 1);
 
-                        m_skip[line + 1] = true;
+                        skip[line + 1] = true;
                     }
 
                     if (B == 0)
-                        B = m_stackSize - A - 1;
+                        B = registers - A - 1;
 
-                    var table = m_registers.GetValue(A, line);
+                    var table = r.GetValue(A, line);
 
                     for (int i = 1; i <= B; i++)
-                        operations.AddLast(new TableSet(line, table, new ConstantExpression(new Constant((C - 1) * 50 + i), -1), m_registers.GetExpression(A + i, line), false, m_registers.GetUpdated(A + i, line)));
+                        operations.AddLast(new TableSet(line, table, new ConstantExpression(new Constant((C - 1) * 50 + i), -1), r.GetExpression(A + i, line), false, r.GetUpdated(A + i, line)));
                 } break;
             case Op.CLOSE:
                 break;
             case Op.CLOSURE:
                 {
-                    var f = m_functions[Bx];
+                    var f = functions[Bx];
 
                     operations.AddLast(new RegisterSet(line, A, new ClosureExpression(f, DeclList, line + 1)));
                     
@@ -1246,7 +1246,7 @@ namespace UnluacNET
                     {
                         // Skip upvalue declarations
                         for (int i = 0; i < f.NumUpValues; i++)
-                            m_skip[line + 1 + i] = true;
+                            skip[line + 1 + i] = true;
                     }
                 } break;
             case Op.VARARG:
@@ -1257,7 +1257,7 @@ namespace UnluacNET
                         throw new InvalidOperationException();
 
                     if (B == 0)
-                        B = m_stackSize - A + 1;
+                        B = registers - A + 1;
 
                     var value = new Vararg(B - 1, multiple);
 
@@ -1276,7 +1276,7 @@ namespace UnluacNET
             Assignment assign = null;
             var wasMultiple = false;
 
-            var stmt = operation.Process(m_registers, block);
+            var stmt = operation.Process(r, block);
 
             // TODO: Optimize code
             if (stmt != null)
@@ -1304,7 +1304,7 @@ namespace UnluacNET
 
                         assign.AddFirst(target, value);
 
-                        m_skip[nextLine] = true;
+                        skip[nextLine] = true;
 
                         nextLine++;
                     }
@@ -1322,9 +1322,9 @@ namespace UnluacNET
             var blockIndex = 1;
             var blockStack = new Stack<Block>();
 
-            blockStack.Push(m_blocks[0]);
+            blockStack.Push(blocks[0]);
 
-            m_skip = new bool[end + 1];
+            skip = new bool[end + 1];
 
             for (int line = begin; line <= end; line++)
             {
@@ -1332,9 +1332,7 @@ namespace UnluacNET
 
                 while (blockStack.Peek().End <= line)
                 {
-                    var b = blockStack.Pop();
-                    
-                    blockHandler = b.Process(this);
+                    blockHandler = blockStack.Pop().Process(this);
 
                     if (blockHandler != null)
                         break;
@@ -1342,35 +1340,35 @@ namespace UnluacNET
 
                 if (blockHandler == null)
                 {
-                    while (blockIndex < m_blocks.Count && m_blocks[blockIndex].Begin <= line)
-                        blockStack.Push(m_blocks[blockIndex++]);
+                    while (blockIndex < blocks.Count && blocks[blockIndex].Begin <= line)
+                        blockStack.Push(blocks[blockIndex++]);
                 }
 
                 var block = blockStack.Peek();
 
-                m_registers.StartLine(line); // Must occur AFTER block.rewrite (???)
+                r.StartLine(line); // Must occur AFTER block.rewrite (???)
 
-                if (m_skip[line])
+                if (skip[line])
                 {
-                    var nLocals = m_registers.GetNewLocals(line);
+                    var nLocals = r.GetNewLocals(line);
 
-                    if (!(nLocals.Count == 0))
+                    if (nLocals.Count > 0)
                     {
                         var a = new Assignment();
 
                         a.Declare(nLocals[0].Begin);
 
                         foreach (var decl in nLocals)
-                            a.AddLast(new VariableTarget(decl), m_registers.GetValue(decl.Register, line));
+                            a.AddLast(new VariableTarget(decl), r.GetValue(decl.Register, line));
 
-                        blockStack.Peek().AddStatement(a);
+                        block.AddStatement(a);
                     }
 
                     continue;
                 }
 
                 var operations = ProcessLine(line);
-                var newLocals = m_registers.GetNewLocals(blockHandler == null ? line : line - 1);
+                var newLocals = r.GetNewLocals(blockHandler == null ? line : line - 1);
 
                 Assignment assign = null;
 
@@ -1385,11 +1383,12 @@ namespace UnluacNET
                         foreach (var operation in operations)
                         {
                             var set = operation as RegisterSet;
-                            operation.Process(m_registers, block);
 
-                            if (m_registers.IsAssignable(set.Register, set.Line))
+                            operation.Process(r, block);
+
+                            if (r.IsAssignable(set.Register, set.Line))
                             {
-                                assign.AddLast(m_registers.GetTarget(set.Register, set.Line), set.Value);
+                                assign.AddLast(r.GetTarget(set.Register, set.Line), set.Value);
                                 count++;
                             }
                         }
@@ -1418,12 +1417,12 @@ namespace UnluacNET
 
                 if (assign != null)
                 {
-                    if (!(newLocals.Count == 0))
+                    if (newLocals.Count > 0)
                     {
                         assign.Declare(newLocals[0].Begin);
 
                         foreach (var decl in newLocals)
-                            assign.AddLast(new VariableTarget(decl), m_registers.GetValue(decl.Register, line + 1));
+                            assign.AddLast(new VariableTarget(decl), r.GetValue(decl.Register, line + 1));
                     }
                 }
 
@@ -1433,17 +1432,17 @@ namespace UnluacNET
                     {
                         // TODO: Handle when 'blockHandler' is null and 'assign' is NOT null
                     }
-                    else if (!(newLocals.Count == 0) && Code.Op(line) != Op.FORPREP)
+                    else if (newLocals.Count > 0 && Code.Op(line) != Op.FORPREP)
                     {
-                        if (Code.Op(line) != Op.JMP || Code.Op(line + 1 + Code.sBx(line)) != m_tForTarget)
+                        if (Code.Op(line) != Op.JMP || Code.Op(line + 1 + Code.sBx(line)) != tForTarget)
                         {
                             assign = new Assignment();
                             assign.Declare(newLocals[0].Begin);
 
                             foreach (var decl in newLocals)
-                                assign.AddLast(new VariableTarget(decl), m_registers.GetValue(decl.Register, line));
+                                assign.AddLast(new VariableTarget(decl), r.GetValue(decl.Register, line));
 
-                            blockStack.Peek().AddStatement(assign);
+                            block.AddStatement(assign);
                         }
                     }
                 }
@@ -1453,39 +1452,6 @@ namespace UnluacNET
                     continue;
                 }
             }
-        }
-
-        public Branch PopCondition(Stack<Branch> stack)
-        {
-            var branch = stack.Pop();
-
-            if (m_backup != null)
-                m_backup.Push(branch);
-
-            if (branch is TestSetNode)
-                throw new InvalidOperationException();
-
-            var begin = branch.Begin;
-
-            if (Code.Op(branch.Begin) == Op.JMP)
-                begin += (1 + Code.sBx(branch.Begin));
-
-            while (!(stack.Count == 0))
-            {
-                var next = stack.Peek();
-
-                if (next is TestSetNode)
-                    break;
-
-                if (next.End == begin)
-                    branch = new OrBranch(PopCondition(stack).Invert(), branch);
-                else if (next.End == branch.End)
-                    branch = new AndBranch(PopCondition(stack), branch);
-                else
-                    break;
-            }
-
-            return branch;
         }
 
         public Branch PopCompareSetCondition(Stack<Branch> stack, int assignEnd)
@@ -1503,6 +1469,39 @@ namespace UnluacNET
 
             // Invert argument doesn't matter because begin == end
             return PopSetConditionInternal(stack, invert, assignEnd);
+        }
+
+        public Branch PopCondition(Stack<Branch> stack)
+        {
+            var branch = stack.Pop();
+
+            if (m_backup != null)
+                m_backup.Push(branch);
+
+            if (branch is TestSetNode)
+                throw new InvalidOperationException();
+
+            var begin = branch.Begin;
+
+            if (Code.Op(branch.Begin) == Op.JMP)
+                begin += (1 + Code.sBx(branch.Begin));
+
+            while (stack.Count > 0)
+            {
+                var next = stack.Peek();
+
+                if (next is TestSetNode)
+                    break;
+
+                if (next.End == begin)
+                    branch = new OrBranch(PopCondition(stack).Invert(), branch);
+                else if (next.End == branch.End)
+                    branch = new AndBranch(PopCondition(stack), branch);
+                else
+                    break;
+            }
+
+            return branch;
         }
 
         public Branch PopSetCondition(Stack<Branch> stack, int assignEnd)
@@ -1594,16 +1593,16 @@ namespace UnluacNET
         public void Print(Output output)
         {
             HandleInitialDeclares(output);
-            m_outer.Print(output);
+            outer.Print(output);
         }
 
         public Decompiler(LFunction function)
         {
-            InputChunk = new Function(function);
+            F = new Function(function);
             Function = function;
 
-            m_stackSize = function.MaxStackSize;
-            m_length = function.Code.Length;
+            registers = function.MaxStackSize;
+            length = function.Code.Length;
 
             Code = new Code(function);
 
@@ -1623,15 +1622,15 @@ namespace UnluacNET
                 {
                     var name = String.Format("_ARG_{0}_", i);
 
-                    DeclList[i] = new Declaration(name, 0, m_length - 1);
+                    DeclList[i] = new Declaration(name, 0, length - 1);
                 }
             }
 
-            m_upvalues = new Upvalues(function.UpValues);
-            m_functions = function.Functions;
+            upvalues = new Upvalues(function.UpValues);
+            functions = function.Functions;
             m_params = function.NumParams;
-            m_vararg = function.VarArg;
-            m_tForTarget = function.Header.Version.TForTarget;
+            vararg = function.VarArg;
+            tForTarget = function.Header.Version.TForTarget;
         }
     }
 }

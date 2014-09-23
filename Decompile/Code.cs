@@ -22,17 +22,17 @@ namespace UnluacNET
 
         public static int Extract_B(int codePoint)
         {
-            return codePoint >> 23;
+            return (ushort)(codePoint >> 23);
         }
 
         public static int Extract_Bx(int codePoint)
         {
-            return codePoint >> 14;
+            return (ushort)(codePoint >> 14);
         }
 
         public static int Extract_sBx(int codePoint)
         {
-            return ((codePoint >> 14) - 131071) & 0x1FFFF;
+            return (ushort)((codePoint >> 14) - 131071);
         }
 
         public Op Op(int line)
