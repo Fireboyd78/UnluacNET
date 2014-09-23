@@ -698,7 +698,7 @@ namespace UnluacNET
 
 
                         /* This is the target of the tail JMP */
-                        var tail = hasTail ? cond.End + Code.sBx(cond.End - 1) : -1;
+                        var tail = hasTail ? (cond.End + Code.sBx(cond.End - 1)) & 0x1FFFF : -1;
                         var originalTail = tail;
 
                         var enclosing = EnclosingUnprotectedBlock(cond.Begin);
@@ -842,21 +842,19 @@ namespace UnluacNET
             }
 
             // Remove breaks that were later parsed as else jumps
-            var iter = m_blocks.GetEnumerator();
+            var newBlocks = new List<Block>();
 
-            while (iter.MoveNext())
+            foreach (var block in m_blocks)
             {
-                var block = iter.Current;
-
                 if (m_skip[block.Begin] && block is Break)
-                    m_blocks.Remove(block);
+                    continue;
+
+                newBlocks.Add(block);
             }
 
-            //m_blocks.Sort((c, o) => {
-            //    return String.Compare(c.GetType().Name, o.GetType().Name);
-            //});
-
+            m_blocks = newBlocks;
             m_backup = null;
+
             return outer;
         }
 
