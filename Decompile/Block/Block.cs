@@ -76,7 +76,11 @@ namespace UnluacNET
 
         public virtual Operation Process(Decompiler d)
         {
-            return new GenericOperation(ScopeEnd, this);
+            var statement = this;
+
+            return new LambdaOperation(End - 1, (r, block) => {
+                return statement;
+            });
         }
 
         public Block(LFunction function, int begin, int end)

@@ -35,9 +35,8 @@ namespace UnluacNET
                 if (next != null && statement is FunctionCallStatement && next.BeginsWithParen)
                     output.Print(";");
                 
-                // uhh...what?
-                //if (!(statement is IfThenElseBlock))
-                //    output.PrintLine();
+                if (!(statement is IfThenElseBlock))
+                    output.PrintLine();
             }
         }
 

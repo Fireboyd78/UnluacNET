@@ -32,7 +32,7 @@ namespace UnluacNET
 
         public static int Extract_sBx(int codePoint)
         {
-            return (codePoint >> 14) - 0x1FFFF;
+            return ((codePoint >> 14) - 131071) & 0x1FFFF;
         }
 
         public Op Op(int line)

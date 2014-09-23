@@ -95,6 +95,11 @@ namespace UnluacNET
             s.Lines = header.Integer.ParseList(stream, header);
 
             if (header.Debug)
+                Console.WriteLine("-- beginning to parse locals list");
+
+            s.Locals = header.Local.ParseList(stream, header);
+
+            if (header.Debug)
                 Console.WriteLine("-- beginning to parse upvalues list");
 
             var upvalNames = header.String.ParseList(stream, header);

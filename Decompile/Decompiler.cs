@@ -517,11 +517,13 @@ namespace UnluacNET
                             m_registers.SetInternalLoopVariable(A, line, line + 2 + sBx);
                             m_registers.SetInternalLoopVariable(A + 1, line, line + 2 + sBx);
                             m_registers.SetInternalLoopVariable(A + 2, line, line + 2 + sBx);
-                            m_registers.SetInternalLoopVariable(A + 3, line, line + 2 + sBx);
+                            
+                            m_registers.SetExplicitLoopVariable(A + 3, line, line + 2 + sBx);
                         } break;
                     case Op.FORLOOP:
                         // Should be skipped by preceding FORPREP
                         throw new InvalidOperationException();
+                    default:
                         reduce = IsStatement(line);
                         break;
                     }
@@ -553,11 +555,21 @@ namespace UnluacNET
 
                         if (peekNode is TrueNode)
                         {
+                            isAssignNode = true;
+                            compareCorrect = true;
 
+                            assignEnd += (Code.C(assignEnd) != 0) ? 2 : 1;
                         }
                         else if (peekNode.IsCompareSet)
                         {
+                            if (Code.Op(peekNode.Begin) != Op.LOADBOOL ||
+                                Code.C(peekNode.Begin) != 0)
+                            {
+                                isAssignNode = true;
+                                assignEnd += (Code.C(assignEnd) != 0) ? 2 : 1;
 
+                                compareCorrect = true;
+                            }
                         }
                         else if (assignEnd - 3 >= 1 &&
                             Code.Op(assignEnd - 2) == Op.LOADBOOL &&
@@ -653,7 +665,7 @@ namespace UnluacNET
 
                         backups.Push(m_backup);
 
-                    } while (!(conditions.Count == 0));
+                    } while (!(stack.Count == 0));
 
                     do
                     {
@@ -840,7 +852,9 @@ namespace UnluacNET
                     m_blocks.Remove(block);
             }
 
-            m_blocks.Sort();
+            //m_blocks.Sort((c, o) => {
+            //    return String.Compare(c.GetType().Name, o.GetType().Name);
+            //});
 
             m_backup = null;
             return outer;

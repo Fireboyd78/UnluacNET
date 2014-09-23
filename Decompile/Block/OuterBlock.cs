@@ -26,7 +26,7 @@ namespace UnluacNET
 
         public override int ScopeEnd
         {
-            get { return (End + 1) + Function.Header.Version.OuterBlockScopeAdjustment; }
+            get { return (End - 1) + Function.Header.Version.OuterBlockScopeAdjustment; }
         }
 
         public override void AddStatement(Statement statement)

@@ -41,6 +41,8 @@ namespace UnluacNET
         {
             var d = new Decompiler(m_function);
             output.Print("function");
+
+            PrintMain(output, d, true);
         }
 
         public override void PrintClosure(Output output, Target name)
@@ -52,7 +54,12 @@ namespace UnluacNET
                 name is TableTarget)
             {
                 name.PrintMethod(output);
-                
+                PrintMain(output, d, false);
+            }
+            else
+            {
+                name.Print(output);
+                PrintMain(output, d, true);
             }
         }
 

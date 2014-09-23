@@ -27,8 +27,8 @@ namespace UnluacNET
             var op = (m_invert) ? "~=" : "==";
 
             return new BinaryExpression(op,
-                registers.GetExpression(!transpose ? m_left : m_right, Line),
-                registers.GetExpression(!transpose ? m_right : m_left, Line),
+                registers.GetKExpression(!transpose ? m_left : m_right, Line),
+                registers.GetKExpression(!transpose ? m_right : m_left, Line),
                 Expression.PRECEDENCE_COMPARE,
                 Expression.ASSOCIATIVITY_LEFT);
         }

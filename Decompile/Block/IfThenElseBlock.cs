@@ -30,6 +30,11 @@ namespace UnluacNET
             get { return true; }
         }
 
+        public override int ScopeEnd
+        {
+            get { return End - 2; }
+        }
+
         public override void AddStatement(Statement statement)
         {
             m_statements.Add(statement);

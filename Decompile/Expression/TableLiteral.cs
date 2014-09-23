@@ -51,6 +51,8 @@ namespace UnluacNET
                     value.PrintMultiple(output);
                 else
                     value.Print(output);
+
+                m_listLength++;
             }
             else if (m_isObject && key.IsIdentifier)
             {

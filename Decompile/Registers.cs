@@ -168,7 +168,7 @@ namespace UnluacNET
             m_values = new Expression[registers, length + 1];
 
             for (int register = 0; register < registers; register++)
-                m_values[registers, 0] = Expression.NIL;
+                m_values[register, 0] = Expression.NIL;
 
             m_updated = new int[registers, length + 1];
             m_startedLines = new bool[length + 1];

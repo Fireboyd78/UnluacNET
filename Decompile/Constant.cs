@@ -58,7 +58,7 @@ namespace UnluacNET
                 
                 var start = (char)m_string[0];
 
-                if (start != '_' && Char.IsLetter(start))
+                if (start != '_' && !Char.IsLetter(start))
                     return false;
 
                 for (int i = 1; i < m_string.Length; i++)

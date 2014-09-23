@@ -23,8 +23,8 @@ namespace UnluacNET
         public Declaration(LLocal local)
         {
             Name = local.ToString();
-            //Begin = local.Start;
-            //End = local.End;
+            Begin = local.Start;
+            End = local.End;
         }
 
         public Declaration(String name, int begin, int end)
