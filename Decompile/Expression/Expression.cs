@@ -28,6 +28,11 @@ namespace UnluacNET
             return new BinaryExpression("+", left, right, PRECEDENCE_ADD, ASSOCIATIVITY_LEFT);
         }
 
+        public static BinaryExpression MakeAND(Expression left, Expression right)
+        {
+            return new BinaryExpression("and", left, right, PRECEDENCE_AND, ASSOCIATIVITY_NONE);
+        }
+
         public static BinaryExpression MakeCONCAT(Expression left, Expression right)
         {
             return new BinaryExpression("..", left, right, PRECEDENCE_CONCAT, ASSOCIATIVITY_RIGHT);

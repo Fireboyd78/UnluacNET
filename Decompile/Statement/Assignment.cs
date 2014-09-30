@@ -96,7 +96,7 @@ namespace UnluacNET
 
         public override void Print(Output output)
         {
-            if (!(m_targets.Count == 0))
+            if (m_targets.Count > 0)
             {
                 if (m_declare)
                     output.Print("local ");
@@ -106,14 +106,16 @@ namespace UnluacNET
                 var value = m_values[0];
                 var target = m_targets[0];
 
-                if (m_targets.Count == 1 && m_values.Count == 1 &&
-                    value.IsClosure && target.IsFunctionName)
+                if (m_targets.Count == 1 && m_values.Count == 1)
                 {
-                    //This check only works in Lua version 0x51
-                    if (!m_declare || m_declareStart >= value.ClosureUpvalueLine)
-                        functionSugar = true;
-                    if (target.IsLocal && value.IsUpvalueOf(target.GetIndex()))
-                        functionSugar = true;
+                    if (value.IsClosure && target.IsFunctionName)
+                    {
+                        //This check only works in Lua version 0x51
+                        if (!m_declare || m_declareStart >= value.ClosureUpvalueLine)
+                            functionSugar = true;
+                        if (target.IsLocal && value.IsUpvalueOf(target.GetIndex()))
+                            functionSugar = true;
+                    }
                 }
 
                 if (!functionSugar)

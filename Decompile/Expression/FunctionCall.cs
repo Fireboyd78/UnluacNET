@@ -54,43 +54,27 @@ namespace UnluacNET
         {
             var args = new List<Expression>(m_arguments.Length);
 
-            if (IsMethodCall)
+            var obj = (IsMethodCall) ? m_function.GetTable() : m_function;
+
+            if (obj.IsClosure || obj.IsConstant)
             {
-                var obj = m_function.GetTable();
-
-                if (obj.IsClosure || obj.IsConstant)
-                {
-                    output.Print("(");
-                    obj.Print(output);
-                    output.Print(")");
-                }
-                else
-                {
-                    obj.Print(output);
-                }
-
-                output.Print(":");
-                output.Print(m_function.GetField());
-
-                for (int i = 1; i < m_arguments.Length; i++)
-                    args.Add(m_arguments[i]);
+                output.Print("(");
+                obj.Print(output);
+                output.Print(")");
             }
             else
             {
-                if (m_function.IsClosure || m_function.IsConstant)
-                {
-                    output.Print("(");
-                    m_function.Print(output);
-                    output.Print(")");
-                }
-                else
-                {
-                    m_function.Print(output);
-                }
-
-                for (int i = 0; i < m_arguments.Length; i++)
-                    args.Add(m_arguments[i]);
+                obj.Print(output);
             }
+
+            if (IsMethodCall)
+            {
+                output.Print(":");
+                output.Print(m_function.GetField());
+            }
+
+            for (int i = (IsMethodCall) ? 1 : 0; i < m_arguments.Length; i++)
+                args.Add(m_arguments[i]);
 
             output.Print("(");
             Expression.PrintSequence(output, args, false, true);

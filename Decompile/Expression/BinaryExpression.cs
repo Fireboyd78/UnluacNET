@@ -45,24 +45,27 @@ namespace UnluacNET
 
         public override void Print(Output output)
         {
-            if (LeftGroup)
+            var leftGroup = LeftGroup;
+            var rightGroup = RightGroup;
+
+            if (leftGroup)
                 output.Print("(");
 
             m_left.Print(output);
 
-            if (LeftGroup)
+            if (leftGroup)
                 output.Print(")");
 
             output.Print(" ");
             output.Print(m_op);
             output.Print(" ");
 
-            if (RightGroup)
+            if (rightGroup)
                 output.Print("(");
 
             m_right.Print(output);
 
-            if (RightGroup)
+            if (rightGroup)
                 output.Print(")");
         }
 

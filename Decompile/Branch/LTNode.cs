@@ -28,7 +28,7 @@ namespace UnluacNET
             Expression rtn = new BinaryExpression(op, !transpose ? leftExpr : rightExpr, !transpose ? rightExpr : leftExpr, Expression.PRECEDENCE_COMPARE, Expression.ASSOCIATIVITY_LEFT);
 
             if (m_invert)
-                rtn = new UnaryExpression("not ", rtn, Expression.PRECEDENCE_UNARY);
+                rtn = Expression.MakeNOT(rtn);
 
             return rtn;
         }

@@ -321,14 +321,14 @@ namespace UnluacNET
             {
                 if (!skip[line])
                 {
-                    var A = Code.A(line);
-                    var B = Code.B(line);
-                    var C = Code.C(line);
-                    var Bx = Code.Bx(line);
+                    var A   = Code.A(line);
+                    var B   = Code.B(line);
+                    var C   = Code.C(line);
+                    var Bx  = Code.Bx(line);
                     var sBx = Code.sBx(line);
                     
                     var op = Code.Op(line);
-                    
+
                     switch (op)
                     {
                     case Op.EQ:
@@ -337,83 +337,69 @@ namespace UnluacNET
                         {
                             Branch node = null;
 
-                            // TODO: Optimize nodes
+                            var invert = A != 0;
+                            var begin = line + 2;
+                            var end = begin + Code.sBx(line + 1);
+
                             switch (op)
                             {
                             case Op.EQ:
-                                node = new EQNode(
-                                    B,
-                                    C,
-                                    A != 0,
-                                    line,
-                                    line + 2,
-                                    line + 2 + Code.sBx(line + 1));
-                                break;
+                                node = new EQNode(B, C, invert, line, begin, end); break;
                             case Op.LT:
-                                node = new LTNode(
-                                B,
-                                C,
-                                A != 0,
-                                line,
-                                line + 2,
-                                line + 2 + Code.sBx(line + 1));
-                                break;
+                                node = new LTNode(B, C, invert, line, begin, end); break;
                             case Op.LE:
-                                node = new LENode(
-                                B,
-                                C,
-                                A != 0,
-                                line,
-                                line + 2,
-                                line + 2 + Code.sBx(line + 1));
-                                break;
+                                node = new LENode(B, C, invert, line, begin, end); break;
                             }
 
                             stack.Push(node);
 
                             skip[line + 1] = true;
 
-                            if (Code.Op(node.End) == Op.LOADBOOL)
+                            // TODO: Add code description
+                            // Not quite sure what the purpose of this is,
+                            // but it seems to be related to conditionals
+                            for (int k = 0; k <= 1; k++)
                             {
-                                if (Code.C(node.End) != 0)
+                                var nend = node.End - k;
+                                
+                                if (Code.Op(nend) == Op.LOADBOOL)
                                 {
-                                    node.IsCompareSet = true;
-                                    node.SetTarget = Code.A(node.End);
-                                }
-                                else if (Code.Op(node.End - 1) == Op.LOADBOOL)
-                                {
-                                    if (Code.C(node.End - 1) != 0)
+                                    if (Code.C(nend) != 0)
                                     {
                                         node.IsCompareSet = true;
-                                        node.SetTarget = Code.A(node.End);
+                                        node.SetTarget    = Code.A(node.End);
+
+                                        // Done
+                                        break;
                                     }
+
+                                    // Try next one
+                                    continue;
                                 }
+
+                                // No action taken
+                                break;
                             }
                         } continue;
                     case Op.TEST:
                         {
-                            stack.Push(new TestNode(
-                                A,
-                                C != 0,
-                                line,
-                                line + 2,
-                                line + 2 + Code.sBx(line + 1)));
-
+                            var invert = C != 0;
+                            var begin = line + 2;
+                            var end = begin + Code.sBx(line + 1);
+                            
+                            stack.Push(new TestNode(A, invert, line, begin, end));
                             skip[line + 1] = true;
                         } continue;
                     case Op.TESTSET:
                         {
-                            testSet = true;
-                            testSetEnd = line + 2 + Code.sBx(line + 1);
+                            var invert = C != 0;
+                            var begin = line + 2;
+                            var end = begin + Code.sBx(line + 1);
 
-                            stack.Push(new TestSetNode(
-                                A,
-                                B,
-                                C != 0,
-                                line,
-                                line + 2,
-                                line + 2 + Code.sBx(line + 1)));
+                            testSet     = true;
+                            testSetEnd  = end;
 
+                            stack.Push(new TestSetNode(A, B, invert, line, begin, end));
                             skip[line + 1] = true;
                         } continue;
                     case Op.JMP:
@@ -436,62 +422,52 @@ namespace UnluacNET
                             }
                             else if (Code.Op(tLine) == tForTarget && !skip[tLine])
                             {
-                                var tA = Code.A(tLine);
-                                var tC = Code.C(tLine);
+                                var tReg        = Code.A(tLine);
+                                var tLength     = Code.C(tLine);
 
-                                if (tC == 0)
+                                if (tLength == 0)
                                     throw new InvalidOperationException();
 
-                                r.SetInternalLoopVariable(tA, tLine, line + 1); // TODO: end?
-                                r.SetInternalLoopVariable(tA + 1, tLine, line + 1);
-                                r.SetInternalLoopVariable(tA + 2, tLine, line + 1);
+                                var blockBegin  = line + 1;
+                                var blockEnd    = tLine + 2;
+                                
+                                for (int k = 0; k < 3; k++)
+                                    r.SetInternalLoopVariable(tReg + k, tLine, blockBegin); // TODO: end?
 
-                                for (int index = 1; index <= tC; index++)
-                                    r.SetExplicitLoopVariable( tA + 2 + index, line, tLine + 2); // TODO: end?
+                                for (int index = 1; index <= tLength; index++)
+                                    r.SetExplicitLoopVariable(tReg + 2 + index, line, blockEnd); // TODO: end?
 
                                 skip[tLine] = true;
                                 skip[tLine + 1] = true;
 
-                                blocks.Add(new TForBlock(
-                                    Function,
-                                    line + 1,
-                                    tLine + 2,
-                                    tA,
-                                    tC,
-                                    r));
+                                blocks.Add(new TForBlock(Function, blockBegin, blockEnd, tReg, tLength, r));
                             }
-                            else if (Code.sBx(line) == 2 &&
-                                Code.Op(line + 1) == Op.LOADBOOL &&
-                                Code.C(line + 1) != 0)
+                            else if (Code.sBx(line) == 2 && Code.Op(line + 1) == Op.LOADBOOL && Code.C(line + 1) != 0)
                             {
                                 /* This is the tail of a boolean set with a compare node and assign node */
                                 blocks.Add(new BooleanIndicator(Function, line));
                             }
-                            else
+                            else if (first || loopRemoved[line])
                             {
-                                if (first || loopRemoved[line])
+                                if (tLine > line)
                                 {
-                                    if (tLine > line)
+                                    isBreak[line] = true;
+                                    blocks.Add(new Break(Function, line, tLine));
+                                }
+                                else
+                                {
+                                    var enclosing = EnclosingBreakableBlock(line);
+
+                                    if (enclosing != null && enclosing.Breakable &&
+                                        Code.Op(enclosing.End) == Op.JMP &&
+                                        (Code.sBx(enclosing.End) + enclosing.End + 1 == tLine))
                                     {
                                         isBreak[line] = true;
-                                        blocks.Add(new Break(Function, line, tLine));
+                                        blocks.Add(new Break(Function, line, enclosing.End));
                                     }
                                     else
                                     {
-                                        var enclosing = EnclosingBreakableBlock(line);
-
-                                        if (enclosing != null &&
-                                            enclosing.Breakable &&
-                                            Code.Op(enclosing.End) == Op.JMP &&
-                                            Code.sBx(enclosing.End) + enclosing.End + 1 == tLine)
-                                        {
-                                            isBreak[line] = true;
-                                            blocks.Add(new Break(Function, line, enclosing.End));
-                                        }
-                                        else
-                                        {
-                                            blocks.Add(new AlwaysLoop(Function, tLine, line + 1));
-                                        }
+                                        blocks.Add(new AlwaysLoop(Function, tLine, line + 1));
                                     }
                                 }
                             }
@@ -500,20 +476,16 @@ namespace UnluacNET
                         {
                             reduce = true;
 
-                            blocks.Add(new ForBlock(
-                                Function,
-                                line + 1,
-                                line + 2 + sBx,
-                                A,
-                                r));
+                            var forEnd  = line + 2 + sBx;
+
+                            blocks.Add(new ForBlock(Function, line + 1, forEnd, A, r));
 
                             skip[line + 1 + sBx] = true;
 
-                            r.SetInternalLoopVariable(A, line, line + 2 + sBx);
-                            r.SetInternalLoopVariable(A + 1, line, line + 2 + sBx);
-                            r.SetInternalLoopVariable(A + 2, line, line + 2 + sBx);
+                            for (int k = 0; k < 3; k++)
+                                r.SetInternalLoopVariable(A + k, line, forEnd);
                             
-                            r.SetExplicitLoopVariable(A + 3, line, line + 2 + sBx);
+                            r.SetExplicitLoopVariable(A + 3, line, forEnd);
                         } break;
                     case Op.FORLOOP:
                         // Should be skipped by preceding FORPREP
@@ -557,8 +529,7 @@ namespace UnluacNET
                         }
                         else if (peekNode.IsCompareSet)
                         {
-                            if (Code.Op(peekNode.Begin) != Op.LOADBOOL ||
-                                Code.C(peekNode.Begin) != 0)
+                            if (Code.Op(peekNode.Begin) != Op.LOADBOOL || Code.C(peekNode.Begin) == 0)
                             {
                                 isAssignNode = true;
                                 assignEnd += (Code.C(assignEnd) != 0) ? 2 : 1;
@@ -592,26 +563,27 @@ namespace UnluacNET
                                 assignEnd += 1;
                             }
                         }
-                        else if (assignEnd - 1 >= 1 &&
-                            Code.Op(assignEnd) == Op.LOADBOOL &&
-                            Code.C(assignEnd) != 0 &&
-                            Code.Op(assignEnd - 1) == Op.JMP &&
-                            Code.sBx(assignEnd - 1) == 2)
+                        else if (assignEnd - 1 >= 1)
                         {
-                            if (peekNode is TestNode)
+                            if (Code.Op(assignEnd) == Op.LOADBOOL &&
+                                Code.C(assignEnd) != 0 &&
+                                Code.Op(assignEnd - 1) == Op.JMP &&
+                                Code.sBx(assignEnd - 1) == 2)
                             {
-                                isAssignNode = true;
-                                assignEnd += 2;
+                                if (peekNode is TestNode)
+                                {
+                                    isAssignNode = true;
+                                    assignEnd += 2;
+                                }
                             }
-                        }
-                        else if (assignEnd - 1 >= 1 &&
-                            r.IsLocal(GetAssignment(assignEnd - 1), assignEnd - 1) &&
-                            assignEnd > peekNode.Line)
-                        {
-                            var decl = r.GetDeclaration(GetAssignment(assignEnd - 1), assignEnd - 1);
+                            else if (r.IsLocal(GetAssignment(assignEnd - 1), assignEnd - 1) &&
+                                assignEnd > peekNode.Line)
+                            {
+                                var decl = r.GetDeclaration(GetAssignment(assignEnd - 1), assignEnd - 1);
 
-                            if (decl.Begin == assignEnd - 1 && decl.End > assignEnd - 1)
-                                isAssignNode = true;
+                                if (decl.Begin == assignEnd - 1 && decl.End > assignEnd - 1)
+                                    isAssignNode = true;
+                            }
                         }
 
                         if (!compareCorrect &&
@@ -660,7 +632,7 @@ namespace UnluacNET
 
                         backups.Push(m_backup);
 
-                    } while (!(stack.Count == 0));
+                    } while (stack.Count > 0);
 
                     do
                     {
@@ -1529,16 +1501,16 @@ namespace UnluacNET
 
             var target = branch.SetTarget;
 
-            while (!(stack.Count == 0))
+            while (stack.Count > 0)
             {
                 var next = stack.Peek();
                 var nInvert = false;
                 var nEnd = next.End;
 
-                if (Code.Op(nEnd) == Op.LOADBOOL)
+                if (Code.Op(next.End) == Op.LOADBOOL)
                 {
-                    nInvert = Code.B(nEnd) != 0;
-                    nEnd += (Code.C(nEnd) != 0) ? 2 : 1;
+                    nInvert = Code.B(next.End) != 0;
+                    nEnd += (Code.C(next.End) != 0) ? 2 : 1;
                 }
                 else if (next is TestNode)
                 {

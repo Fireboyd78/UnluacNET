@@ -38,8 +38,8 @@ namespace UnluacNET
 
             var result = base.CompareTo(block);
 
-            if (result == 0 && block is ElseEndBlock)
-                Console.WriteLine("HEY HEY HEY");
+            //if (result == 0 && block is ElseEndBlock)
+            //    Console.WriteLine("HEY HEY HEY");
 
             return result;
         }

@@ -125,7 +125,7 @@ namespace UnluacNET
                     {
                         var value = entry.Value;
 
-                        if (!(value.IsBrief))
+                        if (!value.IsBrief)
                         {
                             lineBreak = true;
                             break;
@@ -171,12 +171,14 @@ namespace UnluacNET
             }
         }
 
-        public TableLiteral() : this(5, 5)
+        public TableLiteral()
+            : this(5, 5)
         {
 
         }
 
-        public TableLiteral(int arraySize, int hashSize) : base(PRECEDENCE_ATOMIC)
+        public TableLiteral(int arraySize, int hashSize)
+            : base(PRECEDENCE_ATOMIC)
         {
             m_entries = new List<Entry>(arraySize + hashSize);
         }

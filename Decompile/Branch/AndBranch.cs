@@ -12,7 +12,7 @@ namespace UnluacNET
 
         public override Expression AsExpression(Registers registers)
         {
-            return new BinaryExpression("and", m_left.AsExpression(registers), m_right.AsExpression(registers), Expression.PRECEDENCE_AND, Expression.ASSOCIATIVITY_NONE);
+            return Expression.MakeAND(m_left.AsExpression(registers), m_right.AsExpression(registers));
         }
 
         public override int GetRegister()

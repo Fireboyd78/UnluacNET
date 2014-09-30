@@ -73,16 +73,17 @@ namespace UnluacNET
 
                             if (assignment.GetFirstTarget().IsDeclaration(decl))
                             {
-                                var name = (node.Inverted) ? "or" : "and";
-                                var precedence = (node.Inverted) ? Expression.PRECEDENCE_OR : Expression.PRECEDENCE_AND;
+                                var left = new LocalVariable(decl);
+                                var right = assignment.GetFirstValue();
 
-                                var expr = new BinaryExpression(name, new LocalVariable(decl), assignment.GetFirstValue(), precedence, Expression.ASSOCIATIVITY_NONE);
+                                var expr = (node.Inverted)
+                                    ? Expression.MakeOR(left, right)
+                                    : Expression.MakeAND(left, right);
 
                                 return new LambdaOperation(End - 1, (r, block) => {
                                     return new Assignment(assignment.GetFirstTarget(), expr);
                                 });
                             }
-
                         }
                     }
                 }
@@ -120,10 +121,9 @@ namespace UnluacNET
                         var testReg = test;
 
                         return new LambdaOperation(End - 1, (r, block) => {
-                            m_r.SetValue(testReg, m_branch.End - 1, setb.AsExpression(m_r));
+                            r.SetValue(testReg, m_branch.End - 1, setb.AsExpression(r));
                             return null;
                         });
-
                     }
                 }
             }

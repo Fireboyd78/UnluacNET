@@ -213,7 +213,7 @@ namespace UnluacNET
 
                                 var cx = ((int)c);
 
-                                if (cx >= 7 || cx <= 13)
+                                if (cx >= 7 && cx <= 13)
                                 {
                                     output.Print(chars[cx - 7]);
                                 }

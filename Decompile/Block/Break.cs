@@ -37,7 +37,7 @@ namespace UnluacNET
 
         public override void Print(Output output)
         {
-            output.Print("do break end");
+            output.Print("do return end");
         }
 
         public override void PrintTail(Output output)

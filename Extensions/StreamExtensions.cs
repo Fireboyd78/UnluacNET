@@ -11,7 +11,7 @@ using System.Text;
 
 namespace UnluacNET
 {
-    public static class StreamExtensions
+    internal static class StreamExtensions
     {
         public static long Seek(this Stream stream, long offset, long origin)
         {

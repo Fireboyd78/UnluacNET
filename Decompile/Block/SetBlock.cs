@@ -93,11 +93,11 @@ namespace UnluacNET
 
                     var register = 0;
 
-                    for (; register < m_r.NumRegisters; register++)
+                    for (; register < r.NumRegisters; register++)
                     {
-                        if (m_r.GetUpdated(register, Branch.End - 1) == Branch.End - 1)
+                        if (r.GetUpdated(register, Branch.End - 1) == Branch.End - 1)
                         {
-                            expr = m_r.GetValue(register, Branch.End);
+                            expr = r.GetValue(register, Branch.End);
                             break;
                         }
                     }
@@ -110,28 +110,28 @@ namespace UnluacNET
                         if (d.Code.Op(Branch.End - 3) == Op.JMP &&
                             d.Code.sBx(Branch.End - 3) == 2)
                         {
-                            expr = m_r.GetValue(target, Branch.End - 2);
+                            expr = r.GetValue(target, Branch.End - 2);
                         }
                         else
                         {
-                            expr = m_r.GetValue(target, Branch.Begin);
+                            expr = r.GetValue(target, Branch.Begin);
                         }
 
                         Branch.UseExpression(expr);
 
-                        if (m_r.IsLocal(target, Branch.End - 1))
-                            return new Assignment(m_r.GetTarget(target, Branch.End - 1), Branch.AsExpression(m_r));
+                        if (r.IsLocal(target, Branch.End - 1))
+                            return new Assignment(r.GetTarget(target, Branch.End - 1), Branch.AsExpression(r));
 
-                        m_r.SetValue(target, Branch.End - 1, Branch.AsExpression(m_r));
+                        r.SetValue(target, Branch.End - 1, Branch.AsExpression(r));
                     }
                     else if (expr != null && Target >= 0)
                     {
                         Branch.UseExpression(expr);
 
-                        if (m_r.IsLocal(Target, Branch.End - 1))
-                            return new Assignment(m_r.GetTarget(Target, Branch.End - 1), Branch.AsExpression(m_r));
+                        if (r.IsLocal(Target, Branch.End - 1))
+                            return new Assignment(r.GetTarget(Target, Branch.End - 1), Branch.AsExpression(r));
 
-                        m_r.SetValue(Target, Branch.End - 1, Branch.AsExpression(m_r));
+                        r.SetValue(Target, Branch.End - 1, Branch.AsExpression(r));
                     }
                     else
                     {
