@@ -119,6 +119,8 @@ namespace Unluac
                                 {
                                     d.Print(new Output(writer));
 
+                                    writer.Flush();
+
                                     if (writeLog)
                                         Console.WriteLine("successfully decompiled to '{0}'", filename);
 
