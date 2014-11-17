@@ -115,7 +115,7 @@ namespace Unluac
 
                             try
                             {
-                                using (var writer = new StreamWriter(filename, false, Encoding.UTF8))
+                                using (var writer = new StreamWriter(filename, false, new UTF8Encoding(false)))
                                 {
                                     d.Print(new Output(writer));
 
