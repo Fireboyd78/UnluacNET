@@ -114,7 +114,7 @@ namespace UnluacNET
                     if (m_r.GetUpdated(test, m_branch.End - 1) >= m_branch.Begin)
                     {
                         var right = m_r.GetValue(test, m_branch.End);
-                        var setb = d.PopSetCondition(m_stack, m_stack.Peek().End);
+                        var setb = d.PopSetCondition(m_stack, m_stack.Peek().End, test);
 
                         setb.UseExpression(right);
 

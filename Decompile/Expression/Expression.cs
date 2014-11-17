@@ -209,6 +209,11 @@ namespace UnluacNET
             get { return false; }
         }
 
+        public virtual bool IsNewEntryAllowed
+        {
+            get { return false; }
+        }
+
         public int Precedence { get; private set; }
 
         public virtual bool IsUpvalueOf(int register)

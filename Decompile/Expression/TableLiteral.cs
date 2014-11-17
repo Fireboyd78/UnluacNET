@@ -34,6 +34,7 @@ namespace UnluacNET
         private bool m_isObject = true;
         private bool m_isList   = true;
         private int m_listLength  = 1;
+        private int m_capacity;
 
         private void PrintEntry(int index, Output output)
         {
@@ -89,6 +90,11 @@ namespace UnluacNET
         public override bool IsBrief
         {
             get { return false; }
+        }
+
+        public override bool IsNewEntryAllowed
+        {
+            get { return m_entries.Count < m_capacity; }
         }
 
         public override bool IsTableLiteral
@@ -171,16 +177,11 @@ namespace UnluacNET
             }
         }
 
-        public TableLiteral()
-            : this(5, 5)
-        {
-
-        }
-
         public TableLiteral(int arraySize, int hashSize)
             : base(PRECEDENCE_ATOMIC)
         {
-            m_entries = new List<Entry>(arraySize + hashSize);
+            m_capacity = arraySize + hashSize;
+            m_entries = new List<Entry>(m_capacity);
         }
     }
 }

@@ -598,7 +598,7 @@ namespace UnluacNET
 
                             assignEnd = begin + 2;
 
-                            var condition = PopCompareSetCondition(stack, assignEnd);
+                            var condition = PopCompareSetCondition(stack, assignEnd, target);
 
                             condition.SetTarget = target;
                             condition.End = assignEnd;
@@ -613,7 +613,7 @@ namespace UnluacNET
                             var begin = peekNode.Begin;
                             var target = peekNode.SetTarget;
 
-                            var condition = PopSetCondition(stack, assignEnd);
+                            var condition = PopSetCondition(stack, assignEnd, target);
 
                             condition.SetTarget = target;
                             condition.End = assignEnd;
@@ -1426,7 +1426,7 @@ namespace UnluacNET
             }
         }
 
-        public Branch PopCompareSetCondition(Stack<Branch> stack, int assignEnd)
+        public Branch PopCompareSetCondition(Stack<Branch> stack, int assignEnd, int target)
         {
             var top = stack.Pop();
             var invert = false;
@@ -1440,7 +1440,7 @@ namespace UnluacNET
             stack.Push(top);
 
             // Invert argument doesn't matter because begin == end
-            return PopSetConditionInternal(stack, invert, assignEnd);
+            return PopSetConditionInternal(stack, invert, assignEnd, target);
         }
 
         public Branch PopCondition(Stack<Branch> stack)
@@ -1476,15 +1476,54 @@ namespace UnluacNET
             return branch;
         }
 
-        public Branch PopSetCondition(Stack<Branch> stack, int assignEnd)
+        public Branch PopSetCondition(Stack<Branch> stack, int assignEnd, int target)
         {
             stack.Push(new AssignNode(assignEnd - 1, assignEnd, assignEnd));
             
             //Invert argument doesn't matter because begin == end
-            return PopSetConditionInternal(stack, false, assignEnd);
+            return PopSetConditionInternal(stack, false, assignEnd, target);
         }
 
-        private Branch PopSetConditionInternal(Stack<Branch> stack, bool invert, int assignEnd)
+        /*
+        private int _adjustLine(int line, int target) {
+          int testline = line;
+        
+          while(testline >= 1 && code.op(testline) == Op.LOADBOOL && (target == -1 || code.A(testline) == target)) {
+            testline--;
+          }
+        
+          if(testline == line) {
+            return testline;
+          }
+        
+          testline++;
+        
+          if(code.C(testline) != 0) {
+            return testline + 2;
+          } else {
+            return testline + 1;
+          }
+        }
+        */
+
+        private int AdjustLine(int line, int target)
+        {
+            var testLine = line;
+
+            while (testLine >= 1 && Code.Op(testLine) == Op.LOADBOOL && (target == -1 || Code.A(testLine) == target))
+                testLine--;
+
+            if (testLine == line)
+                return testLine;
+
+            testLine++;
+
+            testLine += (Code.C(testLine) != 0) ? 2 : 1;
+
+            return testLine;
+        }
+
+        private Branch PopSetConditionInternal(Stack<Branch> stack, bool invert, int assignEnd, int target)
         {
             var branch = stack.Pop();
 
@@ -1494,12 +1533,10 @@ namespace UnluacNET
             if (invert)
                 branch = branch.Invert();
 
-            if (Code.Op(begin) == Op.LOADBOOL)
-                begin += (Code.C(begin) != 0) ? 2 : 1;
-            if (Code.Op(end) == Op.LOADBOOL)
-                end += (Code.C(end) != 0) ? 2 : 1;
+            begin = AdjustLine(begin, target);
+            end = AdjustLine(end, target);
 
-            var target = branch.SetTarget;
+            var btarget = branch.SetTarget;
 
             while (stack.Count > 0)
             {
@@ -1507,10 +1544,10 @@ namespace UnluacNET
                 var nInvert = false;
                 var nEnd = next.End;
 
-                if (Code.Op(next.End) == Op.LOADBOOL)
+                if (Code.Op(nEnd) == Op.LOADBOOL && (target == -1 || Code.A(nEnd) == target))
                 {
-                    nInvert = Code.B(next.End) != 0;
-                    nEnd += (Code.C(next.End) != 0) ? 2 : 1;
+                    nInvert = Code.B(nEnd) != 0;
+                    nEnd = AdjustLine(nEnd, target);
                 }
                 else if (next is TestNode)
                 {
@@ -1530,7 +1567,7 @@ namespace UnluacNET
                     //if (addr != nEnd)
                     //    nInvert = !nInvert;
 
-                    var left = PopSetConditionInternal(stack, nInvert, assignEnd);
+                    var left = PopSetConditionInternal(stack, nInvert, assignEnd, target);
 
                     if (nInvert)
                         branch = new OrBranch(left, branch);
@@ -1552,7 +1589,7 @@ namespace UnluacNET
             }
 
             branch.IsSet = true;
-            branch.SetTarget = target;
+            branch.SetTarget = btarget;
 
             return branch;
         }
