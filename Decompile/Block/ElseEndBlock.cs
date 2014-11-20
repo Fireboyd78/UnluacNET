@@ -51,21 +51,19 @@ namespace UnluacNET
 
         public override void Print(Output output)
         {
+            output.Print("else");
+
             if (m_statements.Count == 1 && m_statements[0] is IfThenEndBlock)
-            {
-                output.Print("else");
+            {    
                 m_statements[0].Print(output);
             }
             else if (m_statements.Count == 2 && m_statements[0] is IfThenElseBlock && m_statements[1] is ElseEndBlock)
             {
-                output.Print("else");
-
                 m_statements[0].Print(output);
                 m_statements[1].Print(output);
             }
             else
             {
-                output.Print("else");
                 output.PrintLine();
 
                 output.IncreaseIndent();

@@ -648,11 +648,19 @@ namespace UnluacNET
                         if (breakable && breakTarget == cond.End)
                         {
                             var immediateEnclosing = EnclosingBlock(cond.Begin);
+                            var breakableEnclosing = EnclosingBreakableBlock(cond.Begin);
 
-                            for (int iline = Math.Max(cond.End, immediateEnclosing.End - 1); iline >= Math.Max(cond.Begin, immediateEnclosing.Begin); iline--)
+                            var loopStart = immediateEnclosing.End;
+
+                            if (immediateEnclosing == breakableEnclosing)
+                                --loopStart;
+
+                            for (int iline = loopStart; iline >= Math.Max(cond.Begin, immediateEnclosing.Begin); iline--)
                             {
-                                if (Code.Op(iline) == Op.JMP &&
-                                    iline + 1 + Code.sBx(iline) == breakTarget)
+                                var op = Code.Op(iline);
+                                var target = iline + 1 + Code.sBx(iline);
+
+                                if (op == Op.JMP && target == breakTarget)
                                 {
                                     cond.End = iline;
                                     break;
@@ -668,6 +676,9 @@ namespace UnluacNET
                         var originalTail = tail;
 
                         var enclosing = EnclosingUnprotectedBlock(cond.Begin);
+                        var breakEnclosing = EnclosingBreakableBlock(cond.Begin);
+
+                        var hasScopeIssues = false;
 
                         /* Checking enclosing unprotected block to undo JMP redirects. */
                         if (enclosing != null)
@@ -682,16 +693,30 @@ namespace UnluacNET
 
                             if (hasTail && enclosing.GetLoopback() == tail)
                                 tail = enclosing.End - 1;
+                        }/* !!!HACK ALERT!!! */
+                        else if (hasTail && breakEnclosing != null && (tail >= breakEnclosing.ScopeEnd))
+                        {
+                            // HACK: fix scope issues
+                            // this is VERY hack-ish, but it works!
+                            var scopeIsBad = Code.Op(breakEnclosing.ScopeEnd) == Op.JMP && (Code.sBx(breakEnclosing.ScopeEnd) + 1) == tail;
+
+                            // before, 'else' statements would be misinterpreted as 'break' statements
+                            // thankfully, 'else' statements can be found using this method
+                            var isElse = ((cond.End + Code.sBx(cond.End - 1) - 1) == breakEnclosing.ScopeEnd);
+
+                            if (scopeIsBad && !isElse && !isBreak[tail - 1])
+                            {
+                                hasScopeIssues = true;
+                                tail = breakEnclosing.ScopeEnd;
+                            }
                         }
 
                         if (cond.IsSet)
                         {
                             var empty = cond.Begin == cond.End;
 
-                            if (Code.Op(cond.Begin) == Op.JMP &&
-                                Code.sBx(cond.Begin) == 2 &&
-                                Code.Op(cond.Begin + 1) == Op.LOADBOOL &&
-                                Code.C(cond.Begin + 1) != 0)
+                            if (Code.Op(cond.Begin) == Op.JMP && Code.sBx(cond.Begin) == 2 &&
+                                Code.Op(cond.Begin + 1) == Op.LOADBOOL && Code.C(cond.Begin + 1) != 0)
                             {
                                 empty = true;
                             }
@@ -714,10 +739,6 @@ namespace UnluacNET
                         }
                         else if (hasTail)
                         {
-                            // this is ridiculous
-                            if (tail > length)
-                                tail = tail & 0xFFFF;
-
                             var endOp = Code.Op(cond.End - 2);
 
                             var isEndCondJump = endOp == Op.EQ || endOp == Op.LE || endOp == Op.LT || endOp == Op.TEST || endOp == Op.TESTSET;
@@ -731,7 +752,10 @@ namespace UnluacNET
 
                                 var isBreakableLoopEnd = Function.Header.Version.IsBreakableLoopEnd(op);
 
-                                if (isBreakableLoopEnd && loopback2 <= cond.Begin && !isBreak[tail - 1])
+                                var isElse = (Code.Op(cond.Begin - 1) == Op.JMP && (cond.Begin + Code.sBx(cond.Begin - 1)) >= cond.End);
+
+                                // --- clean check -------- hacky check ----------------------------
+                                if ((isBreakableLoopEnd || (breakEnclosing != null && hasScopeIssues)) && loopback2 <= cond.Begin && !isBreak[tail - 1])
                                 {
                                     /* (ends with break) */
                                     blocks.Add(new IfThenEndBlock(Function, cond, backup, r));
@@ -793,8 +817,9 @@ namespace UnluacNET
 
                     foreach (var block in blocks)
                     {
-                        if (block.Contains(decl.Begin) &&
-                            (block.ScopeEnd == decl.End))
+                        /* !!!HACK ALERT!!! */
+                        // scope fix should have fixed this problem
+                        if (block.Contains(decl.Begin) /*&& (block.ScopeEnd >= decl.End)*/)
                         {
                             needsDoEnd = false;
                             break;
@@ -811,13 +836,18 @@ namespace UnluacNET
                 }
             }
 
-            // Remove breaks that were later parsed as else jumps
             var newBlocks = new List<Block>();
 
-            foreach (var block in blocks)
+            for (int b = 0; b < blocks.Count; b++)
             {
-                if (skip[block.Begin] && block is Break)
-                    continue;
+                var block = blocks[b];
+
+                // Remove breaks that were later parsed as else jumps
+                if (skip[block.Begin])
+                {
+                    if (block is Break)
+                        continue;
+                }
 
                 newBlocks.Add(block);
             }
@@ -1483,28 +1513,6 @@ namespace UnluacNET
             //Invert argument doesn't matter because begin == end
             return PopSetConditionInternal(stack, false, assignEnd, target);
         }
-
-        /*
-        private int _adjustLine(int line, int target) {
-          int testline = line;
-        
-          while(testline >= 1 && code.op(testline) == Op.LOADBOOL && (target == -1 || code.A(testline) == target)) {
-            testline--;
-          }
-        
-          if(testline == line) {
-            return testline;
-          }
-        
-          testline++;
-        
-          if(code.C(testline) != 0) {
-            return testline + 2;
-          } else {
-            return testline + 1;
-          }
-        }
-        */
 
         private int AdjustLine(int line, int target)
         {
