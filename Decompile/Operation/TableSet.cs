@@ -17,7 +17,8 @@ namespace UnluacNET
         public override Statement Process(Registers r, Block block)
         {
             // .isTableLiteral() is sufficient when there is debugging info
-            if(m_table.IsTableLiteral && (m_value.IsMultiple || m_table.IsNewEntryAllowed))
+            // TODO: Fix the commented out section screwing up tables
+            if(m_table.IsTableLiteral /*&& (m_value.IsMultiple || m_table.IsNewEntryAllowed)*/)
             {
                 m_table.AddEntry(new TableLiteral.Entry(m_index, m_value, !m_isTable, m_timestamp));
                 return null;
