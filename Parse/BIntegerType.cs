@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+using UnluacNET.IO;
+
 namespace UnluacNET
 {
     public class BIntegerType : BObjectType<BInteger>
@@ -22,6 +24,9 @@ namespace UnluacNET
 
         protected internal BInteger RawParse(Stream stream, BHeader header)
         {
+            // HACK HACK HACK
+            var bigEndian = header.BigEndian;
+
             BInteger value = null;
 
             switch (IntSize)
@@ -33,13 +38,13 @@ namespace UnluacNET
                 value = new BInteger(stream.ReadByte());
                 break;
             case 2:
-                value = new BInteger(stream.ReadInt16());
+                value = new BInteger(stream.ReadInt16(bigEndian));
                 break;
             case 4:
-                value = new BInteger(stream.ReadInt32());
+                value = new BInteger(stream.ReadInt32(bigEndian));
                 break;
             case 8:
-                value = new BInteger(stream.ReadInt64());
+                value = new BInteger(stream.ReadInt64(bigEndian));
                 break;
             default:
                 throw new InvalidOperationException("Bad IntSize, cannot parse data");

@@ -18,7 +18,7 @@ namespace UnluacNET
 
         public override LObject Parse(Stream stream, BHeader header)
         {
-            var type = 0xFF & stream.ReadByte();
+            var type = stream.ReadByte();
 
             if (header.Debug)
             {

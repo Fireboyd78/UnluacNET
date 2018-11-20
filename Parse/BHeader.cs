@@ -4,17 +4,21 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+using UnluacNET.IO;
+
 namespace UnluacNET
 {
     public class BHeader
     {
-        private static readonly int m_signature = 0x61754C1B;
+        private static readonly int m_signature = 0x61754C1B; // '\x1B\Lua'
 
         private static readonly byte[] m_luacTail = {
             0x19, 0x93, 0x0D, 0x0A, 0x1A, 0x0A
         };
 
         public bool Debug { get; set; }
+
+        public bool BigEndian { get; set; }
 
         public Version Version { get; set; }
 
@@ -35,7 +39,7 @@ namespace UnluacNET
                 throw new InvalidOperationException("The input file does not have the signature of a valid Lua file.");
 
             // 1-byte Lua version
-            var version = 0xFF & stream.ReadByte();
+            var version = stream.ReadByte();
 
             switch (version)
             {
@@ -61,7 +65,7 @@ namespace UnluacNET
                 Console.WriteLine("-- version: 0x{0:X}", version);
 
             // 1-byte Lua "format"
-            var format = 0xFF & stream.ReadByte();
+            var format = stream.ReadByte();
 
             if (format != 0)
                 throw new InvalidOperationException("The input chunk reports a non-standard lua format: " + format);
@@ -70,22 +74,18 @@ namespace UnluacNET
                 Console.WriteLine("-- format: {0}", format);
 
             // 1-byte endianness
-            var endianness = 0xFF & stream.ReadByte();
+            var endianness = stream.ReadByte();
 
-            // TODO: Handle Endianness
-            if (endianness != 1)
-            {
-                if (endianness == 0)
-                    throw new InvalidOperationException("The input chunk reports a Big-Endian endianness; unluac can only handle Little-Endian");
-                else
-                    throw new InvalidOperationException("The input chunk reports an invalid endianness: " + endianness);
-            }
+            if (endianness > 1)
+                throw new InvalidOperationException("The input chunk reports an invalid endianness: " + endianness);
+
+            BigEndian = (endianness == 0);
 
             if (Debug)
-                Console.WriteLine("-- endianness: 1 (little)");
+                Console.WriteLine("-- endianness: {0}", (BigEndian) ? "0 (big)" : "1 (little)");
 
             // 1-byte int size
-            var intSize = 0xFF & stream.ReadByte();
+            var intSize = stream.ReadByte();
 
             if (Debug)
                 Console.WriteLine("-- int size: {0}", intSize);
@@ -93,7 +93,7 @@ namespace UnluacNET
             Integer = new BIntegerType(intSize);
 
             // 1-byte sizeT size
-            var sizeTSize = 0xFF & stream.ReadByte();
+            var sizeTSize = stream.ReadByte();
 
             if (Debug)
                 Console.WriteLine("-- size_t size: {0}", sizeTSize);
@@ -101,7 +101,7 @@ namespace UnluacNET
             SizeT = new BSizeTType(sizeTSize);
 
             // 1-byte instruction size
-            var instructionSize = 0xFF & stream.ReadByte();
+            var instructionSize = stream.ReadByte();
 
             if (Debug)
                 Console.WriteLine("-- instruction size: {0}", instructionSize);
@@ -109,12 +109,12 @@ namespace UnluacNET
             if (instructionSize != 4)
                 throw new InvalidOperationException("The input chunk reports an unsupported instruction size: " + instructionSize + " bytes");
 
-            var lNumberSize = 0xFF & stream.ReadByte();
+            var lNumberSize = stream.ReadByte();
 
             if (Debug)
                 Console.WriteLine("-- Lua number size: {0}", lNumberSize);
 
-            var lNumberIntegralCode = 0xFF & stream.ReadByte();
+            var lNumberIntegralCode = stream.ReadByte();
 
             if (Debug)
                 Console.WriteLine("-- Lua number integral code: {0}", lNumberIntegralCode);

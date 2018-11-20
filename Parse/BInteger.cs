@@ -8,6 +8,7 @@ namespace UnluacNET
 {
     public class BInteger : BObject
     {
+        // TODO: Why not just use a 'long' to hold both sizes? Doesn't make much of a difference IMO
         private readonly long m_big;
         private readonly int m_number;
 
@@ -26,6 +27,7 @@ namespace UnluacNET
 
         public void Iterate(Action thunk)
         {
+            // so what even is the difference between these two? they look exactly the same..
             if (m_big == 0)
             {
                 var i = m_number;

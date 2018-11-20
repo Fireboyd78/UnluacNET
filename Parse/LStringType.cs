@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+using UnluacNET.IO;
+
 namespace UnluacNET
 {
     public class LStringType : BObjectType<LString>

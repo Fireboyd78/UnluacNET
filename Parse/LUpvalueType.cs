@@ -12,7 +12,7 @@ namespace UnluacNET
         {
             return new LUpvalue() {
                 InStack = (stream.ReadByte() != 0),
-                Index   = 0xFF & stream.ReadByte()
+                Index   = stream.ReadByte()
             };;
         }
     }

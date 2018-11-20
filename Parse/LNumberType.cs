@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+using UnluacNET.IO;
+
 namespace UnluacNET
 {
     public class LNumberType : BObjectType<LNumber>
@@ -13,6 +15,9 @@ namespace UnluacNET
 
         public override LNumber Parse(Stream stream, BHeader header)
         {
+            // HACK HACK HACK
+            var bigEndian = header.BigEndian;
+
             LNumber value = null;
 
             if (Integral)
@@ -20,10 +25,10 @@ namespace UnluacNET
                 switch (Size)
                 {
                 case 4:
-                    value = new LIntNumber(stream.ReadInt32());
+                    value = new LIntNumber(stream.ReadInt32(bigEndian));
                     break;
                 case 8:
-                    value = new LLongNumber(stream.ReadInt64());
+                    value = new LLongNumber(stream.ReadInt64(bigEndian));
                     break;
                 }
             }
@@ -32,10 +37,10 @@ namespace UnluacNET
                 switch (Size)
                 {
                 case 4:
-                    value = new LFloatNumber(stream.ReadSingle());
+                    value = new LFloatNumber(stream.ReadSingle(bigEndian));
                     break;
                 case 8 :
-                    value = new LDoubleNumber(stream.ReadDouble());
+                    value = new LDoubleNumber(stream.ReadDouble(bigEndian));
                     break;
                 }
             }

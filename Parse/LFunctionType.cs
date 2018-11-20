@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+using UnluacNET.IO;
+
 namespace UnluacNET
 {
     public class LFunctionType : BObjectType<LFunction>
@@ -62,12 +64,15 @@ namespace UnluacNET
             if (header.Debug)
                 Console.WriteLine("-- beginning to parse bytecode list");
 
+            // HACK HACK HACK
+            var bigEndian = header.BigEndian;
+
             s.Length = header.Integer.Parse(stream, header).AsInteger();
             s.Code   = new int[s.Length];
 
             for (int i = 0; i < s.Length; i++)
             {
-                s.Code[i] = stream.ReadInt32();
+                s.Code[i] = stream.ReadInt32(bigEndian);
 
                 if (header.Debug)
                     Console.WriteLine("-- parsed codepoint 0x{0:X}" + s.Code[i]);
@@ -116,10 +121,10 @@ namespace UnluacNET
             s.LineBegin = header.Integer.Parse(stream, header).AsInteger();
             s.LineEnd   = header.Integer.Parse(stream, header).AsInteger();
 
-            s.LenUpvalues      = 0xFF & stream.ReadByte();
-            s.LenParameter     = 0xFF & stream.ReadByte();
-            s.VarArg           = 0xFF & stream.ReadByte();
-            s.MaximumStackSize = 0xFF & stream.ReadByte();
+            s.LenUpvalues      = stream.ReadByte();
+            s.LenParameter     = stream.ReadByte();
+            s.VarArg           = stream.ReadByte();
+            s.MaximumStackSize = stream.ReadByte();
 
             ParseCode(stream, header, s);
             ParseConstants(stream, header, s);
@@ -150,9 +155,9 @@ namespace UnluacNET
             s.LineBegin = header.Integer.Parse(stream, header).AsInteger();
             s.LineEnd = header.Integer.Parse(stream, header).AsInteger();
 
-            s.LenParameter     = 0xFF & stream.ReadByte();
-            s.VarArg           = 0xFF & stream.ReadByte();
-            s.MaximumStackSize = 0xFF & stream.ReadByte();
+            s.LenParameter     = stream.ReadByte();
+            s.VarArg           = stream.ReadByte();
+            s.MaximumStackSize = stream.ReadByte();
 
             ParseCode(stream, header, s);
             ParseConstants(stream, header, s);
