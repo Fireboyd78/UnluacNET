@@ -476,16 +476,20 @@ namespace UnluacNET
                         {
                             reduce = true;
 
-                            var forEnd  = line + 2 + sBx;
+                            var target = line + 1 + sBx;
+                            var close = target - 1;
 
-                            blocks.Add(new ForBlock(Function, line + 1, forEnd, A, r));
+                            var forBegin = line + 1;
+                            var forEnd = target + 1;
+
+                            blocks.Add(new ForBlock(Function, forBegin, forEnd, A, r));
 
                             skip[line + 1 + sBx] = true;
 
                             for (int k = 0; k < 3; k++)
-                                r.SetInternalLoopVariable(A + k, line, forEnd);
+                                r.SetInternalLoopVariable(A + k, forBegin - 2, forEnd - 1);
                             
-                            r.SetExplicitLoopVariable(A + 3, line, forEnd);
+                            r.SetExplicitLoopVariable(A + 3, forBegin - 1, forEnd - 2);
                         } break;
                     case Op.FORLOOP:
                         // Should be skipped by preceding FORPREP
@@ -1157,9 +1161,13 @@ namespace UnluacNET
 
                     var function = r.GetExpression(A, line);
                     var arguments = new Expression[B - 1];
-
+                    
                     for (int register = A + 1; register <= A + B - 1; register++)
-                        arguments[register - A - 1] = r.GetExpression(register, line);
+                    {
+                        var expr = r.GetExpression(register, line);
+                        
+                        arguments[register - A - 1] = expr;
+                    }
 
                     var value = new FunctionCall(function, arguments, multiple);
 
