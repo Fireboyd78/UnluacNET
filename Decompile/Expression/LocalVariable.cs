@@ -9,6 +9,11 @@ namespace UnluacNET
     {
         private readonly Declaration m_decl;
 
+        public Declaration Declaration
+        {
+            get { return m_decl; }
+        }
+
         public override int ConstantIndex
         {
             get { return -1; }
